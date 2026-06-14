@@ -5,6 +5,7 @@
  */
 import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
+import { stripEmojiCodes } from "../html";
 
 const FETCH_TIMEOUT = 20000;
 const MAX_BLOCKS = 40;
@@ -66,7 +67,7 @@ async function fetchHtml(url: string): Promise<string | null> {
   }
 }
 
-const clean = (s: string) => s.replace(/\s+/g, " ").trim();
+const clean = (s: string) => stripEmojiCodes(s.replace(/\s+/g, " ").trim());
 
 const FOOTER_RE =
   /^(Chịu trách nhiệm nội dung|©\s*\d{4}|Giấy phép (cung cấp|thiết lập|hoạt động)|Địa chỉ:|Số điện thoại:|MST:|Tổng biên tập|Bản quyền|All rights reserved|Liên hệ quảng cáo)/i;

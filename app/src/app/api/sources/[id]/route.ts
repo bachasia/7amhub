@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { sources } from "@/lib/db/schema";
+import { sources, articles } from "@/lib/db/schema";
 
 const bodySchema = z.object({
   label: z.string().trim().min(1).optional(),
@@ -33,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  db.delete(articles).where(eq(articles.sourceId, id)).run();
   db.delete(sources).where(eq(sources.id, id)).run();
   return NextResponse.json({ ok: true });
 }

@@ -11,6 +11,7 @@ import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core
 export const sources = sqliteTable("sources", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
+  sublabel: text("sublabel"),
   url: text("url").notNull().unique(),
   siteUrl: text("site_url"),
   active: integer("active").notNull().default(1),

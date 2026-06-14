@@ -1,14 +1,21 @@
 /** Tiện ích xử lý HTML dùng cho parse RSS description + trích toàn văn. */
 import { parseHTML } from "linkedom";
 
-/** Bóc text thuần từ một đoạn HTML, gộp khoảng trắng thừa. */
+/** Xoá emoji shortcode dạng :word: khỏi text (ví dụ :thinking:, :point_right:). */
+export function stripEmojiCodes(text: string): string {
+  return text.replace(/:[a-z][a-z0-9_+-]*:/g, "").replace(/\s{2,}/g, " ").trim();
+}
+
+/** Bóc text thuần từ một đoạn HTML, gộp khoảng trắng thừa, xoá emoji shortcode. */
 export function stripHtml(html: string): string {
   if (!html) return "";
   try {
     const { document } = parseHTML(`<body>${html}</body>`);
-    return (document.body?.textContent || "").replace(/\s+/g, " ").trim();
+    const text = (document.body?.textContent || "").replace(/\s+/g, " ").trim();
+    return stripEmojiCodes(text);
   } catch {
-    return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return stripEmojiCodes(text);
   }
 }
 

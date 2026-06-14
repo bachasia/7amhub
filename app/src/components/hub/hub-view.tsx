@@ -25,7 +25,7 @@ type Tab = "digest" | "feed" | "saved";
 export function HubView() {
   const { theme, toggle: toggleTheme } = useTheme();
   const market = useMarket();
-  const { sources, reload: reloadSources, addSource, deleteSource } = useSources();
+  const { sources, reload: reloadSources, addSource, deleteSource, updateSource } = useSources();
   const { topics } = useTrending(7);
   const { data: digest, loading: digestLoading } = useDigest();
   const { savedIds, savedArticles, toggle: toggleSave } = useSaved();
@@ -349,6 +349,7 @@ export function HubView() {
           sources={sources}
           onAdd={addSource}
           onDelete={deleteSource}
+          onUpdate={updateSource}
           onClose={() => setShowManager(false)}
         />
       )}

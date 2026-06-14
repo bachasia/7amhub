@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 export interface ApiSource {
   id: string;
   label: string;
+  sublabel: string | null;
   url: string;
   siteUrl: string | null;
   active: boolean;
@@ -50,5 +51,17 @@ export function useSources() {
     setState((s) => ({ ...s, sources: s.sources.filter((src) => src.id !== id) }));
   }, []);
 
-  return { ...state, reload: load, addSource, deleteSource };
+  const updateSource = useCallback(async (id: string, label: string, url: string): Promise<ApiSource> => {
+    const res = await fetch(`/api/sources/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Lỗi cập nhật nguồn.");
+    setState((s) => ({ ...s, sources: s.sources.map((src) => src.id === id ? data : src) }));
+    return data;
+  }, []);
+
+  return { ...state, reload: load, addSource, deleteSource, updateSource };
 }

@@ -1,21 +1,27 @@
 "use client";
 import { useState } from "react";
 import type { ApiSource } from "@/hooks/use-sources";
-import { X, Trash2, Plus, Rss } from "lucide-react";
+import { X, Trash2, Plus, Pencil, Check } from "lucide-react";
 
 interface FeedManagerDialogProps {
   sources: ApiSource[];
   onAdd: (label: string, url: string) => Promise<unknown>;
   onDelete: (id: string) => Promise<void>;
+  onUpdate: (id: string, label: string, url: string) => Promise<unknown>;
   onClose: () => void;
 }
 
-export function FeedManagerDialog({ sources, onAdd, onDelete, onClose }: FeedManagerDialogProps) {
+export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose }: FeedManagerDialogProps) {
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const inputStyle: React.CSSProperties = {
     height: 40,
@@ -49,6 +55,32 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onClose }: FeedMan
   async function handleDelete(id: string) {
     setDeletingId(id);
     try { await onDelete(id); } finally { setDeletingId(null); }
+  }
+
+  function startEdit(src: ApiSource) {
+    setEditingId(src.id);
+    setEditLabel(src.label);
+    setEditUrl(src.url);
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError(null);
+  }
+
+  async function handleUpdate(id: string) {
+    if (!editLabel.trim() || !editUrl.trim()) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await onUpdate(id, editLabel.trim(), editUrl.trim());
+      setEditingId(null);
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Lỗi cập nhật nguồn.");
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   const catDots = ["#c96442", "#3d7a5e", "#2a5ca0", "#7a3d7a", "#7a6b3d"];
@@ -101,27 +133,73 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onClose }: FeedMan
             {sources.map((src, i) => (
               <div
                 key={src.id}
-                style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 10 }}
+                style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 10 }}
               >
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: catDots[i % catDots.length], flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{src.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{src.url}</div>
-                </div>
-                <button
-                  aria-label="Xóa nguồn"
-                  disabled={deletingId === src.id}
-                  onClick={() => handleDelete(src.id)}
-                  style={{
-                    width: 32, height: 32, borderRadius: 8, display: "grid", placeItems: "center",
-                    color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer",
-                    opacity: deletingId === src.id ? .5 : 1, flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#b53333"; e.currentTarget.style.background = "color-mix(in srgb, #b53333 10%, transparent)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.background = "none"; }}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {editingId === src.id ? (
+                  <>
+                    <div style={{ display: "flex", gap: 7 }}>
+                      <input
+                        value={editLabel}
+                        onChange={(e) => setEditLabel(e.target.value)}
+                        placeholder="Tên nguồn"
+                        style={{ ...inputStyle, height: 34, flex: 1 }}
+                        disabled={editSaving}
+                        autoFocus
+                      />
+                      <input
+                        value={editUrl}
+                        onChange={(e) => setEditUrl(e.target.value)}
+                        placeholder="URL RSS"
+                        style={{ ...inputStyle, height: 34, flex: 2 }}
+                        disabled={editSaving}
+                      />
+                    </div>
+                    {editError && <p style={{ fontSize: 12, color: "#b53333", margin: 0 }}>{editError}</p>}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => handleUpdate(src.id)}
+                        disabled={editSaving}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, padding: "5px 12px", borderRadius: 6, background: "var(--primary)", color: "#faf9f5", border: "none", cursor: editSaving ? "not-allowed" : "pointer", opacity: editSaving ? .7 : 1 }}
+                      >
+                        <Check size={13} />{editSaving ? "Đang lưu…" : "Lưu"}
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        disabled={editSaving}
+                        style={{ fontSize: 12.5, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: catDots[i % catDots.length], flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{src.label}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{src.url}</div>
+                    </div>
+                    <button
+                      aria-label="Chỉnh sửa nguồn"
+                      onClick={() => startEdit(src)}
+                      style={{ width: 32, height: 32, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--foreground)"; e.currentTarget.style.background = "var(--muted)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.background = "none"; }}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      aria-label="Xóa nguồn"
+                      disabled={deletingId === src.id}
+                      onClick={() => handleDelete(src.id)}
+                      style={{ width: 32, height: 32, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", opacity: deletingId === src.id ? .5 : 1, flexShrink: 0 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#b53333"; e.currentTarget.style.background = "color-mix(in srgb, #b53333 10%, transparent)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.background = "none"; }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

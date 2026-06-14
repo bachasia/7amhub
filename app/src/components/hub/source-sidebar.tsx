@@ -22,6 +22,14 @@ function groupSources(sources: ApiSource[]): Map<string, ApiSource[]> {
   return map;
 }
 
+/** Lấy sub-label: ưu tiên sublabel từ DB, sau đó " · " trong label, cuối cùng full label. */
+function getSubLabel(src: ApiSource, groupItems: ApiSource[]): string {
+  if (groupItems.length <= 1) return src.label;
+  if (src.sublabel) return src.sublabel;
+  const sep = src.label.indexOf(" · ");
+  return sep >= 0 ? src.label.slice(sep + 3) : src.label;
+}
+
 export function SourceSidebar({ sources, activeSourceId, onSelect, onManage, onRefreshed }: SourceSidebarProps & { onRefreshed?: () => void }) {
   const total = sources.reduce((n, s) => n + (s.count ?? 0), 0);
   const groups = groupSources(sources);
@@ -106,8 +114,7 @@ export function SourceSidebar({ sources, activeSourceId, onSelect, onManage, onR
             <div style={groupLabelStyle}>{group}</div>
           )}
           {items.map((src) => {
-            const sep = src.label.indexOf(" · ");
-            const subLabel = sep >= 0 ? src.label.slice(sep + 3) : src.label;
+            const subLabel = getSubLabel(src, items);
             const active = activeSourceId === src.id;
             const spinning = refreshing === src.id;
             return (
@@ -115,7 +122,7 @@ export function SourceSidebar({ sources, activeSourceId, onSelect, onManage, onR
                 <button style={itemStyle(active)} onClick={() => onSelect(src.id)}>
                   <SourceFavicon siteUrl={src.siteUrl} label={src.label} size={17} />
                   <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {groups.size > 1 ? subLabel : src.label}
+                    {subLabel}
                   </span>
                   <span style={countStyle(active)}>{src.count ?? 0}</span>
                 </button>
