@@ -40,7 +40,9 @@ docker compose logs -f api           # xem cron ingest/AI/digest
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `PORT` | 8787 | cổng HTTP |
-| `ANTHROPIC_API_KEY` | — | bắt buộc để bật AI |
+| `ANTHROPIC_API_KEY` | — | API key Anthropic chính thức (cách A) |
+| `ANTHROPIC_BASE_URL` | — | URL gateway custom tương thích Anthropic, vd `http://host:port/v1` (cách B) |
+| `ANTHROPIC_AUTH_TOKEN` | — | token Bearer cho gateway custom (cách B). Cần API_KEY **hoặc** AUTH_TOKEN để bật AI |
 | `MODEL_FAST` | claude-haiku-4-5-20251001 | model phân loại/tóm tắt |
 | `MODEL_SMART` | claude-sonnet-4-6 | model digest |
 | `INGEST_CRON` | `*/15 * * * *` | tần suất fetch RSS |
