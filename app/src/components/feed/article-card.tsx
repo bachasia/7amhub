@@ -1,5 +1,5 @@
 "use client";
-import { Sparkles, ExternalLink, Bookmark } from "lucide-react";
+import { Sparkles, BookOpen, Bookmark } from "lucide-react";
 import type { ApiArticle } from "@/lib/serialize";
 import { catLabel } from "@/lib/categories";
 import { ImageIcon } from "lucide-react";
@@ -24,9 +24,10 @@ interface ArticleCardProps {
   saved: boolean;
   onOpen: (article: ApiArticle) => void;
   onSave: (article: ApiArticle) => void;
+  onRead?: (article: ApiArticle) => void;
 }
 
-export function ArticleCard({ article, saved, onOpen, onSave }: ArticleCardProps) {
+export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleCardProps) {
   const bg = CAT_BG[article.cat ?? ""] ?? "#5e5d59";
   const pill = CAT_PILL[article.cat ?? ""] ?? "#87867f";
 
@@ -178,11 +179,14 @@ export function ArticleCard({ article, saved, onOpen, onSave }: ArticleCardProps
             )}
 
             {article.points.length > 0 && (
-              <ul style={{ margin: "13px 0 0", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ margin: "13px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
                 {article.points.map((pt, i) => (
-                  <li key={i} style={{ fontSize: "clamp(14.5px, 4vw, 16.5px)", lineHeight: 1.52, color: "rgba(255,255,255,.92)" }}>{pt}</li>
+                  <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,.65)", flexShrink: 0, marginTop: 8 }} />
+                    <span style={{ fontSize: "clamp(14.5px, 4vw, 16.5px)", lineHeight: 1.52, color: "rgba(255,255,255,.92)" }}>{pt}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
 
@@ -191,11 +195,8 @@ export function ArticleCard({ article, saved, onOpen, onSave }: ArticleCardProps
             <span style={{ fontSize: 12.5, fontWeight: 500, color: "rgba(255,255,255,.78)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {article.source} · {article.time}
             </span>
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={(e) => { e.stopPropagation(); (onRead ?? onOpen)(article); }}
               style={{
                 fontSize: 13.5,
                 fontWeight: 700,
@@ -206,13 +207,14 @@ export function ArticleCard({ article, saved, onOpen, onSave }: ArticleCardProps
                 borderRadius: 9999,
                 background: "rgba(255,255,255,.16)",
                 color: "#fff",
-                textDecoration: "none",
+                border: "none",
+                cursor: "pointer",
                 whiteSpace: "nowrap",
               }}
             >
-              <ExternalLink size={15} />
+              <BookOpen size={15} />
               Đọc
-            </a>
+            </button>
           </div>
         </div>
       </div>
