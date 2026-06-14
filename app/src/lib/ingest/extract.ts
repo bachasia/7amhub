@@ -8,7 +8,7 @@ import { Readability } from "@mozilla/readability";
 
 const FETCH_TIMEOUT = 20000;
 const MAX_BLOCKS = 40;
-const MIN_PARA_LEN = 30;
+const MIN_PARA_LEN = 15;
 
 export type Block = { t: "p"; v: string } | { t: "img"; v: string };
 
@@ -46,11 +46,20 @@ async function fetchHtml(url: string): Promise<string | null> {
   try {
     const r = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; 7AMHubBot/1.0)" },
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "vi,en-US;q=0.9,en;q=0.8",
+      },
     });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      console.warn(`[extract] fetch failed ${r.status} for ${url}`);
+      return null;
+    }
     return await r.text();
-  } catch {
+  } catch (err) {
+    console.warn(`[extract] fetch error for ${url}:`, err);
     return null;
   } finally {
     clearTimeout(timer);
@@ -152,11 +161,14 @@ export async function extractFullText(url: string): Promise<Extracted | null> {
     const pCount = (b: Block[]) => b.filter((x) => x.t === "p").length;
 
     let blocks: Block[] = [];
+    // Track best image-only result from known selectors (for infographic articles)
+    let imageOnlyFallback: Block[] = [];
     for (const sel of CONTENT_SELECTORS) {
       const el = document.querySelector(sel);
       if (el) {
         const b = collectBlocks(el, url);
         if (pCount(b) >= 1) { blocks = b; break; }
+        if (!imageOnlyFallback.length && b.length > 0) imageOnlyFallback = b;
       }
     }
 
@@ -175,9 +187,13 @@ export async function extractFullText(url: string): Promise<Extracted | null> {
       if (art) blocks = collectBlocks(art, url);
     }
 
+    // Use image-only blocks from a known selector when all text-based fallbacks fail
+    if (!blocks.length && imageOnlyFallback.length) blocks = imageOnlyFallback;
+
     blocks = trimBoilerplate(blocks);
     const paragraphs = blocks.filter((b): b is { t: "p"; v: string } => b.t === "p").map((b) => b.v);
-    if (!paragraphs.length) return null;
+    // Allow image-only articles (infographics) — require at least one block of any type
+    if (!blocks.length) return null;
     const image = leadImage(document, url, blocks);
     return { paragraphs, text: paragraphs.join("\n\n"), blocks, image };
   } catch {
