@@ -60,6 +60,24 @@ async function fetchSource(src: Source): Promise<ParsedItem[]> {
     .filter((x): x is ParsedItem => x !== null);
 }
 
+/** Fetch 1 nguồn, dedupe, insert bài mới. Trả số bài mới. */
+export async function ingestOne(sourceId: string): Promise<{ inserted: number }> {
+  const src = db.select().from(sources).where(eq(sources.id, sourceId)).get();
+  if (!src) throw new Error("source not found");
+  const items = await fetchSource(src);
+  if (!items.length) return { inserted: 0 };
+  const uniq = new Map(items.map((it) => [it.id, it]));
+  const ids = [...uniq.keys()];
+  const existing = new Set(
+    db.select({ id: articles.id }).from(articles).where(inArray(articles.id, ids)).all().map((r) => r.id)
+  );
+  const fresh = [...uniq.values()].filter((it) => !existing.has(it.id));
+  if (fresh.length) {
+    db.insert(articles).values(fresh.map((it) => ({ ...it, fetchedAt: Date.now() }))).run();
+  }
+  return { inserted: fresh.length };
+}
+
 /** Fetch tất cả nguồn active, dedupe, insert bài mới. Trả thống kê. */
 export async function ingestAll(): Promise<{ inserted: number; failed: number; sources: number }> {
   const active = db.select().from(sources).where(eq(sources.active, 1)).all();

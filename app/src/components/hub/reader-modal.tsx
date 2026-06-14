@@ -212,9 +212,12 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
               </div>
               <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--foreground)" }}>{article.lead || article.summary}</p>
               {article.points.length > 0 && (
-                <ul style={{ margin: "16px 0 0", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 9 }}>
+                <ul style={{ margin: "16px 0 0", paddingLeft: 0, display: "flex", flexDirection: "column", gap: 10, listStyle: "none" }}>
                   {article.points.map((pt, i) => (
-                    <li key={i} style={{ fontSize: 16, lineHeight: 1.7, color: "var(--foreground)" }}>{pt}</li>
+                    <li key={i} style={{ fontSize: 15.5, lineHeight: 1.7, color: "var(--foreground)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--primary)", flexShrink: 0, marginTop: 9 }} />
+                      <span>{pt}</span>
+                    </li>
                   ))}
                 </ul>
               )}

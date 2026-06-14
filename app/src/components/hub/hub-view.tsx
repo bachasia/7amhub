@@ -187,6 +187,7 @@ export function HubView() {
             activeSourceId={activeSource}
             onSelect={(id) => { setActiveSource(id); if (tab !== "feed") setTab("feed"); }}
             onManage={() => setShowManager(true)}
+            onRefreshed={() => { reloadArticles(); reloadSources(); }}
           />
         </div>
 
