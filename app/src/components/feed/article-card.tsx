@@ -179,7 +179,7 @@ export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleC
             )}
 
             {article.points.length > 0 && (
-              <div style={{ margin: "13px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="card-points hidden md:flex flex-col" style={{ margin: "13px 0 0", gap: 8 }}>
                 {article.points.map((pt, i) => (
                   <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,.65)", flexShrink: 0, marginTop: 8 }} />
