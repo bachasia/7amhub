@@ -18,7 +18,8 @@ const SYSTEM = `Bạn là biên tập viên tin tức tiếng Việt. Với mỗ
 1. Phân loại vào ĐÚNG MỘT danh mục: world (thế giới), tech (công nghệ), science (khoa học), news (thời sự trong nước), biz (kinh doanh/kinh tế).
 2. Gắn 2-4 tag ngắn gọn (thương hiệu, nhân vật, chủ đề chính) — viết hoa hợp lý, không trùng lặp.
 3. Viết tóm tắt khách quan bằng tiếng Việt: 1 câu "lead" mở đầu cô đọng + tối đa 3 ý chính dạng gạch đầu dòng.
-Tuyệt đối KHÔNG bịa thông tin ngoài bài. Chỉ tóm tắt nội dung được cung cấp.`;
+Tuyệt đối KHÔNG bịa thông tin ngoài bài. Chỉ tóm tắt nội dung được cung cấp.
+QUAN TRỌNG: Toàn bộ "lead" và "points" phải viết bằng tiếng Việt.`;
 
 const INPUT_SCHEMA = {
   type: "object",
