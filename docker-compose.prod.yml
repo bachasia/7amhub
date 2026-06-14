@@ -1,0 +1,43 @@
+# 7AM Hub — Production compose (VPS)
+# Uses pre-built image from GHCR instead of building locally
+# Deploy: docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
+
+services:
+  web:
+    image: ghcr.io/bachasia/7amhub:${IMAGE_TAG:-latest}
+    ports:
+      - "${PORT:-8787}:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/7amhub.db
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
+    command: >
+      sh -c "npx tsx src/lib/db/migrate.ts && node server.js"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  worker:
+    image: ghcr.io/bachasia/7amhub:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/7amhub.db
+    volumes:
+      - ./data:/app/data
+    command: >
+      sh -c "npx tsx src/lib/db/migrate.ts && npx tsx worker.ts"
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: unless-stopped
