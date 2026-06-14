@@ -13,6 +13,7 @@ export interface ApiArticle {
   cat: string | null;
   tags: string[];
   title: string;
+  viTitle: string | null;
   summary: string;
   lead: string;
   points: string[];
@@ -50,6 +51,7 @@ export function serializeArticle(a: Article, src?: Source): ApiArticle {
     cat: a.category,
     tags: safeJson<string[]>(a.tags, []),
     title: a.title,
+    viTitle: a.aiTitle || null,
     summary: lead || a.rawSummary || "",
     lead,
     points: safeJson<string[]>(a.aiPoints, []),

@@ -149,7 +149,7 @@ export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleC
               margin: 0,
             }}
           >
-            {article.title}
+            {article.viTitle || article.title}
           </h2>
 
           {/* AI summary — scrollable area */}

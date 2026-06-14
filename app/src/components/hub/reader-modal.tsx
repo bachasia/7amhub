@@ -153,7 +153,7 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
               margin: "0 0 16px",
             }}
           >
-            {article.title}
+            {article.viTitle || article.title}
           </h2>
 
           {/* Thumbnail */}
@@ -188,7 +188,7 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
             }}
           >
             <button style={tabStyle(tab === "ai")} onClick={() => setTab("ai")}>✦ Tóm tắt AI</button>
-            <button style={tabStyle(tab === "original")} onClick={() => setTab("original")}>Bài gốc</button>
+            <button style={tabStyle(tab === "original")} onClick={() => setTab("original")}>Nội dung</button>
           </div>
 
           {/* AI summary pane */}
@@ -229,9 +229,6 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
           {/* Original article pane */}
           {tab === "original" && (
             <div>
-              <p style={{ fontSize: 14, color: "var(--muted-foreground)", lineHeight: 1.65, marginBottom: 18 }}>
-                Nội dung bên dưới được trích xuất tự động. Để đọc đầy đủ, hãy mở bài gốc.
-              </p>
               {loadingDetail ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "46px 0", color: "var(--muted-foreground)", fontSize: 13.5 }}>
                   <div style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--primary)", animation: "spin .8s linear infinite" }} />

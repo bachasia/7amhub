@@ -68,7 +68,7 @@ export function ArticleRow({ article, source, read, saved, onOpen, onSave }: Art
             margin: 0,
           }}
         >
-          {article.title}
+          {article.viTitle || article.title}
         </h2>
 
         {article.summary && (

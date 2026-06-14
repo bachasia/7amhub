@@ -7,6 +7,10 @@ import { db } from "@/lib/db/client";
 import { articles, sources } from "@/lib/db/schema";
 import { serializeArticle } from "@/lib/serialize";
 import { extractFullText } from "@/lib/ingest/extract";
+import { aiReady } from "@/lib/ai/client";
+import { translateContent } from "@/lib/ai/translate-content";
+
+type Block = { t: "p" | "img"; v: string };
 
 // Article IDs are full URLs (e.g. "https://vnexpress.net/...") so they span multiple
 // path segments when used in a route. The catch-all [...id] captures them all and rejoins.
@@ -16,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const a = db.select().from(articles).where(eq(articles.id, articleId)).get();
   if (!a) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  let blocks: { t: "p" | "img"; v: string }[] = [];
+  let blocks: Block[] = [];
   if (a.content) {
     try { blocks = JSON.parse(a.content); } catch { blocks = []; }
   }
@@ -35,7 +39,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  const paragraphs = blocks.filter((b) => b.t === "p").map((b) => b.v);
+  // Dịch nội dung on-demand, cache vào ai_content_vi
+  let contentVi: Block[] = [];
+  if (a.aiContentVi) {
+    try { contentVi = JSON.parse(a.aiContentVi); } catch { contentVi = []; }
+  }
+  if (!contentVi.length && aiReady()) {
+    const paragraphs = blocks.filter((b) => b.t === "p").map((b) => b.v);
+    if (paragraphs.length) {
+      try {
+        const translated = await translateContent(paragraphs);
+        // Ghép lại: giữ img block ở vị trí gốc, thay p block bằng bản dịch
+        let pIdx = 0;
+        contentVi = blocks.map((b) => b.t === "img" ? b : { t: "p" as const, v: translated[pIdx++] ?? b.v });
+        db.update(articles)
+          .set({ aiContentVi: JSON.stringify(contentVi) })
+          .where(eq(articles.id, articleId))
+          .run();
+      } catch { contentVi = []; }
+    }
+  }
+
   const src = db.select().from(sources).where(eq(sources.id, a.sourceId)).get() ?? undefined;
-  return NextResponse.json({ ...serializeArticle(a, src), paragraphs, content: blocks });
+  return NextResponse.json({
+    ...serializeArticle(a, src),
+    content: contentVi.length ? contentVi : blocks,
+  });
 }
