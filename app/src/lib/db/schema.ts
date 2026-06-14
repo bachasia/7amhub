@@ -62,8 +62,14 @@ export const readArticles = sqliteTable("read_articles", {
   readAt: integer("read_at").notNull(),
 });
 
+export const chatUsage = sqliteTable("chat_usage", {
+  date: text("date").primaryKey(),
+  count: integer("count").notNull().default(0),
+});
+
 export type Source = typeof sources.$inferSelect;
 export type Article = typeof articles.$inferSelect;
 export type Digest = typeof digests.$inferSelect;
 export type SavedArticle = typeof savedArticles.$inferSelect;
 export type ReadArticle = typeof readArticles.$inferSelect;
+export type ChatUsage = typeof chatUsage.$inferSelect;
