@@ -52,6 +52,11 @@ function parseItem(item: Parser.Item & Record<string, any>, src: Source): Parsed
 
 async function fetchSource(src: Source): Promise<ParsedItem[]> {
   const feed = await parser.parseURL(src.url);
+  // Backfill homepage thật của báo (cho favicon) nếu chưa có — feed.link trỏ về site gốc
+  // (vd feedburner: feeds.feedburner.com/tinhte → tinhte.vn).
+  if (!src.siteUrl && feed.link) {
+    db.update(sources).set({ siteUrl: feed.link }).where(eq(sources.id, src.id)).run();
+  }
   return (feed.items || [])
     .map((it) => parseItem(it as any, src))
     .filter((x): x is ParsedItem => x !== null);

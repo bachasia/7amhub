@@ -6,7 +6,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { z } from 'zod';
 import { config } from '../lib/config.js';
 
-const client = config.aiEnabled ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : null;
+// Hỗ trợ cả Anthropic chính thức (apiKey) lẫn gateway custom (baseURL + authToken Bearer).
+const client = config.aiEnabled
+  ? new Anthropic({
+      apiKey: config.ANTHROPIC_API_KEY ?? null,
+      authToken: config.ANTHROPIC_AUTH_TOKEN, // set Authorization: Bearer khi dùng gateway
+      baseURL: config.ANTHROPIC_BASE_URL || undefined,
+    })
+  : null;
 
 export function aiReady(): boolean {
   return client !== null;

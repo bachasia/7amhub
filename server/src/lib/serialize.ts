@@ -46,7 +46,7 @@ export function serializeArticle(a: Article, src?: Source): ApiArticle {
     id: a.id,
     sourceId: a.sourceId,
     source: src?.label || hostOf(a.url),
-    host: hostOf(src?.url || a.url),
+    host: hostOf(src?.siteUrl || a.url), // ưu tiên homepage thật → favicon đúng (feedburner…)
     cat: a.category,
     tags: safeJson<string[]>(a.tags, []),
     title: a.title,

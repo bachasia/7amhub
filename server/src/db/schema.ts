@@ -10,7 +10,8 @@ import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core
 export const sources = sqliteTable('sources', {
   id: text('id').primaryKey(), // slug hoặc 'f' + timestamp
   label: text('label').notNull(),
-  url: text('url').notNull().unique(),
+  url: text('url').notNull().unique(), // URL feed RSS
+  siteUrl: text('site_url'), // homepage thật của báo (cho favicon) — lấy từ <channel><link>
   active: integer('active').notNull().default(1),
   createdAt: integer('created_at').notNull(),
 });
@@ -24,7 +25,8 @@ export const articles = sqliteTable(
     url: text('url').notNull(),
     rawSummary: text('raw_summary'), // tóm tắt thô từ RSS description
     image: text('image'),
-    fullText: text('full_text'), // toàn văn trích bằng readability (lazy)
+    fullText: text('full_text'), // toàn văn dạng text (input cho AI tóm tắt)
+    content: text('content'), // JSON các block xen kẽ {t:'p'|'img', v} — giữ ảnh trong bài
     publishedAt: integer('published_at'), // ms
     fetchedAt: integer('fetched_at').notNull(),
 

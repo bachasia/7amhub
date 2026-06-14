@@ -9,6 +9,9 @@ import { z } from 'zod';
 const schema = z.object({
   PORT: z.coerce.number().default(8787),
   ANTHROPIC_API_KEY: z.string().optional(),
+  // Hỗ trợ AI endpoint custom (gateway tương thích Anthropic):
+  ANTHROPIC_BASE_URL: z.string().optional(),
+  ANTHROPIC_AUTH_TOKEN: z.string().optional(), // token Bearer cho gateway custom
   MODEL_FAST: z.string().default('claude-haiku-4-5-20251001'),
   MODEL_SMART: z.string().default('claude-sonnet-4-6'),
   INGEST_CRON: z.string().default('*/15 * * * *'),
@@ -22,12 +25,14 @@ const parsed = schema.parse(process.env);
 
 export const config = {
   ...parsed,
-  /** Bật phần AI chỉ khi có API key */
-  aiEnabled: Boolean(parsed.ANTHROPIC_API_KEY),
+  /** Bật phần AI khi có API key HOẶC auth token cho gateway custom */
+  aiEnabled: Boolean(parsed.ANTHROPIC_API_KEY || parsed.ANTHROPIC_AUTH_TOKEN),
 };
 
 if (!config.aiEnabled) {
   console.warn(
-    '[config] ANTHROPIC_API_KEY chưa được đặt — phần AI (phân loại/tóm tắt/digest) sẽ bị tắt.',
+    '[config] Chưa có ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN — phần AI (phân loại/tóm tắt/digest) sẽ bị tắt.',
   );
+} else if (parsed.ANTHROPIC_BASE_URL) {
+  console.log(`[config] AI dùng endpoint custom: ${parsed.ANTHROPIC_BASE_URL}`);
 }

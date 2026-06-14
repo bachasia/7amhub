@@ -19,10 +19,12 @@ function normalizeUrl(u: string): string {
 }
 
 sourcesRoute.get('/', (c) => {
+  // count = số bài ĐÃ sẵn sàng (ready) — khớp với những gì feed hiển thị
   const counts = new Map(
     db
       .select({ sid: articles.sourceId, n: sql<number>`count(*)` })
       .from(articles)
+      .where(eq(articles.aiStatus, 'ready'))
       .groupBy(articles.sourceId)
       .all()
       .map((r) => [r.sid, r.n]),
@@ -36,9 +38,11 @@ sourcesRoute.post('/', async (c) => {
   if (!parsed.success) return c.json({ error: 'Cần nhập tên nguồn và URL RSS.' }, 400);
   const url = normalizeUrl(parsed.data.url);
 
-  // xác minh URL là RSS hợp lệ trước khi lưu
+  // xác minh URL là RSS hợp lệ + lấy homepage thật (cho favicon) trước khi lưu
+  let siteUrl: string | null = null;
   try {
-    await probe.parseURL(url);
+    const feed = await probe.parseURL(url);
+    siteUrl = feed.link || null;
   } catch {
     return c.json({ error: 'Không đọc được RSS từ URL này.' }, 400);
   }
@@ -46,7 +50,7 @@ sourcesRoute.post('/', async (c) => {
   const existing = db.select().from(sources).where(eq(sources.url, url)).get();
   if (existing) return c.json({ error: 'Nguồn đã tồn tại.' }, 409);
 
-  const row = { id: 'f' + Date.now(), label: parsed.data.label, url, active: 1, createdAt: Date.now() };
+  const row = { id: 'f' + Date.now(), label: parsed.data.label, url, siteUrl, active: 1, createdAt: Date.now() };
   db.insert(sources).values(row).run();
   return c.json({ ...row, active: true, count: 0 }, 201);
 });

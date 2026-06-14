@@ -30,13 +30,16 @@ function pickPending(limit: number) {
 }
 
 async function processOne(a: typeof articles.$inferSelect): Promise<boolean> {
-  // 1) đảm bảo có toàn văn (lazy)
+  // 1) đảm bảo có toàn văn + blocks (lazy)
   let fullText = a.fullText;
   if (!fullText) {
     const ex = await extractFullText(a.url);
     if (ex) {
       fullText = ex.text;
-      db.update(articles).set({ fullText }).where(eq(articles.id, a.id)).run();
+      db.update(articles)
+        .set({ fullText, content: JSON.stringify(ex.blocks) })
+        .where(eq(articles.id, a.id))
+        .run();
     }
   }
   const text = fullText || a.rawSummary || '';

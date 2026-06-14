@@ -46,18 +46,27 @@ articlesRoute.get('/:id', async (c) => {
   const a = db.select().from(articles).where(eq(articles.id, id)).get();
   if (!a) return c.json({ error: 'not found' }, 404);
 
-  // lazy: trích toàn văn nếu chưa có (phục vụ tab "Bài gốc")
-  let paragraphs: string[] = [];
-  if (a.fullText) {
-    paragraphs = a.fullText.split('\n\n').filter(Boolean);
-  } else {
-    const ex = await extractFullText(a.url);
-    if (ex) {
-      paragraphs = ex.paragraphs;
-      db.update(articles).set({ fullText: ex.text }).where(eq(articles.id, id)).run();
+  // lazy: trích toàn văn + blocks (đoạn văn xen ảnh) nếu chưa có — phục vụ tab "Bài gốc"
+  let blocks: { t: 'p' | 'img'; v: string }[] = [];
+  if (a.content) {
+    try {
+      blocks = JSON.parse(a.content);
+    } catch {
+      blocks = [];
     }
   }
-
+  if (!blocks.length) {
+    const ex = await extractFullText(a.url);
+    if (ex) {
+      blocks = ex.blocks;
+      db.update(articles)
+        .set({ fullText: ex.text, content: JSON.stringify(ex.blocks) })
+        .where(eq(articles.id, id))
+        .run();
+    }
+  }
+  // paragraphs giữ cho tương thích; content là nguồn chính (có ảnh)
+  const paragraphs = blocks.filter((b) => b.t === 'p').map((b) => b.v);
   const src = db.select().from(sources).where(eq(sources.id, a.sourceId)).get() ?? undefined;
-  return c.json({ ...serializeArticle(a, src), paragraphs });
+  return c.json({ ...serializeArticle(a, src), paragraphs, content: blocks });
 });

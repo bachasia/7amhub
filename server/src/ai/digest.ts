@@ -8,15 +8,20 @@ import { db } from '../db/client.js';
 import { articles, digests } from '../db/schema.js';
 import { config } from '../lib/config.js';
 import { aiReady, callJSON } from './client.js';
-import { CATEGORIES } from './classify.js';
+import { CATEGORIES, type Category } from './classify.js';
 import { todayLocal } from '../lib/local-date.js';
 
+// Khoan dung: gateway/model đôi khi bỏ sót field — dùng default thay vì reject cả digest.
 const digestSchema = z.object({
-  intro: z.string(),
-  picks: z.array(z.string()).min(1).max(8),
-  byCat: z.array(z.object({ cat: z.enum(CATEGORIES), ids: z.array(z.string()) })),
+  intro: z.string().default(''),
+  picks: z.array(z.string()).max(8).default([]),
+  byCat: z.array(z.object({ cat: z.enum(CATEGORIES), ids: z.array(z.string()) })).default([]),
 });
-export type DigestPayload = z.infer<typeof digestSchema>;
+export interface DigestPayload {
+  intro: string;
+  picks: string[];
+  byCat: { cat: Category; ids: string[] }[];
+}
 
 const SYSTEM = `Bạn là tổng biên tập của bản tin "Đề xuất 7AM" tiếng Việt.
 Từ danh sách tin trong 24h qua, hãy:
@@ -76,7 +81,7 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
     )
     .join('\n');
 
-  const payload = await callJSON({
+  const parsed = await callJSON({
     model: config.MODEL_SMART,
     system: SYSTEM,
     user: `Danh sách tin 24h qua:\n${list}`,
@@ -87,11 +92,14 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
     maxTokens: 1200,
   });
 
-  // lọc id ảo (phòng model bịa) + boost hot_score cho picks
-  payload.picks = payload.picks.filter((id) => valid.has(id));
-  payload.byCat = payload.byCat
-    .map((g) => ({ ...g, ids: g.ids.filter((id) => valid.has(id)) }))
-    .filter((g) => g.ids.length);
+  // chuẩn hoá (default đã đảm bảo có field) + lọc id ảo (phòng model bịa)
+  const payload: DigestPayload = {
+    intro: parsed.intro ?? '',
+    picks: (parsed.picks ?? []).filter((id) => valid.has(id)),
+    byCat: (parsed.byCat ?? [])
+      .map((g) => ({ ...g, ids: g.ids.filter((id) => valid.has(id)) }))
+      .filter((g) => g.ids.length),
+  };
 
   if (payload.picks.length) {
     for (const id of payload.picks) {
