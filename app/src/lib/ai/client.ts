@@ -20,6 +20,27 @@ export function aiReady(): boolean {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+export async function* streamText(opts: {
+  model: string;
+  system: string;
+  user: string;
+  maxTokens?: number;
+}): AsyncGenerator<string> {
+  if (!client) throw new Error("AI disabled: thiếu ANTHROPIC_API_KEY");
+  const stream = await client.messages.create({
+    model: opts.model,
+    max_tokens: opts.maxTokens ?? 800,
+    system: opts.system,
+    messages: [{ role: "user", content: opts.user }],
+    stream: true,
+  });
+  for await (const event of stream) {
+    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      yield event.delta.text;
+    }
+  }
+}
+
 export async function callJSON<T>(opts: {
   model: string;
   system: string;

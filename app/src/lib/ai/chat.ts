@@ -1,47 +1,40 @@
-/** Trả lời câu hỏi tin tức bằng RAG context-window: 50 bài ready gần nhất → Sonnet → answer + cited ids. */
-import { z } from "zod";
+/**
+ * Chat với tin tức: rate-limit qua SQLite, build context từ 50 bài gần nhất,
+ * stream plain-text answer từ Haiku. Cuối response có dòng "SOURCES: id1,id2".
+ */
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import { articles, chatUsage } from "../db/schema";
 import { config } from "../config";
-import { aiReady, callJSON } from "./client";
+import { aiReady, streamText } from "./client";
 
-const CHAT_SYSTEM = `Bạn là trợ lý tin tức. Chỉ trả lời dựa trên danh sách bài báo được cung cấp.
-Trả lời bằng tiếng Việt, súc tích (2-4 câu). Trích dẫn id bài báo liên quan trong "sourceIds".
-Nếu không có bài nào liên quan, nói thẳng "Không có tin liên quan trong hôm nay."`;
-
-const responseSchema = z.object({
-  answer: z.string(),
-  sourceIds: z.array(z.string()).max(5).default([]),
-});
-
-const CHAT_INPUT_SCHEMA = {
-  type: "object",
-  properties: {
-    answer: { type: "string" },
-    sourceIds: { type: "array", items: { type: "string" } },
-  },
-  required: ["answer", "sourceIds"],
-};
+export const CHAT_SYSTEM = `Bạn là trợ lý tin tức. Chỉ trả lời dựa trên danh sách bài báo được cung cấp.
+Trả lời bằng tiếng Việt, súc tích (2-4 câu).
+Cuối câu trả lời, viết trên một dòng mới riêng biệt: SOURCES: id1,id2 (tối đa 5 id bài liên quan).
+Nếu không có bài nào liên quan, viết: SOURCES: none
+QUAN TRỌNG: Copy CHÍNH XÁC chuỗi id từ danh sách (phần sau "id:"), không đổi ký tự nào.`;
 
 const LIMIT = Number(process.env.CHAT_DAILY_LIMIT ?? 20);
 const HOURS_48 = 48 * 3.6e6;
 
-export interface ChatResponse {
-  answer: string;
-  sources: { id: string; title: string; url: string }[];
+export interface ChatArticleRow {
+  id: string;
+  title: string;
+  url: string;
 }
 
-export async function chatWithNews(question: string, date?: string): Promise<ChatResponse> {
+/** Throws "AI_NOT_READY" | "RATE_LIMIT". Returns article rows for source hydration. */
+export function prepareChatContext(date: string): {
+  context: string;
+  rows: ChatArticleRow[];
+} {
   if (!aiReady()) throw new Error("AI_NOT_READY");
 
-  const today = date ?? new Date().toISOString().slice(0, 10);
-
-  // SQLite atomic increment — safe under concurrent requests
-  db.insert(chatUsage).values({ date: today, count: 1 })
+  // Atomic rate-limit upsert
+  db.insert(chatUsage).values({ date, count: 1 })
     .onConflictDoUpdate({ target: chatUsage.date, set: { count: sql`${chatUsage.count} + 1` } })
     .run();
-  const usage = db.select().from(chatUsage).where(eq(chatUsage.date, today)).get();
+  const usage = db.select().from(chatUsage).where(eq(chatUsage.date, date)).get();
   if ((usage?.count ?? 0) > LIMIT) throw new Error("RATE_LIMIT");
 
   const since = Date.now() - HOURS_48;
@@ -57,27 +50,21 @@ export async function chatWithNews(question: string, date?: string): Promise<Cha
     .limit(50)
     .all();
 
-  if (!rows.length) return { answer: "Chưa có tin nào trong 48h qua.", sources: [] };
+  const context = rows.length
+    ? rows.map((r) => `id:${r.id} | [${r.category}] ${r.title} — ${(r.aiLead ?? "").slice(0, 120)}`).join("\n")
+    : "";
 
-  const valid = new Set(rows.map((r) => r.id));
-  const context = rows.map((r) =>
-    `[${r.id}] [${r.category}] ${r.title} — ${(r.aiLead ?? "").slice(0, 120)}`
-  ).join("\n");
+  return { context, rows: rows.map((r) => ({ id: r.id, title: r.title, url: r.url })) };
+}
 
-  const result = await callJSON({
-    model: config.MODEL_SMART,
+export function chatStream(question: string, context: string): AsyncGenerator<string> {
+  if (!context) {
+    return (async function* () { yield "Chưa có tin nào trong 48h qua.\nSOURCES: none"; })();
+  }
+  return streamText({
+    model: config.MODEL_FAST,
     system: CHAT_SYSTEM,
-    user: `Câu hỏi: ${question}\n\nDanh sách tin:\n${context}`,
-    toolName: "tra_loi_tin_tuc",
-    toolDescription: "Trả lời câu hỏi và liệt kê id bài nguồn.",
-    inputSchema: CHAT_INPUT_SCHEMA,
-    validator: responseSchema,
-    maxTokens: 600,
+    user: `Câu hỏi: ${question}\n\nDanh sách bài báo:\n${context}`,
+    maxTokens: 700,
   });
-
-  const cited = rows.filter((r) => result.sourceIds.includes(r.id) && valid.has(r.id));
-  return {
-    answer: result.answer,
-    sources: cited.map((r) => ({ id: r.id, title: r.title, url: r.url })),
-  };
 }
