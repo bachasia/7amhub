@@ -18,21 +18,23 @@ interface ReaderModalProps {
   onSave: (article: ApiArticle) => void;
   onClose: () => void;
   onMarkRead: (id: string) => void;
+  initialTab?: "ai" | "original";
 }
 
-export function ReaderModal({ article, source, savedIds, onSave, onClose, onMarkRead }: ReaderModalProps) {
-  const [tab, setTab] = useState<"ai" | "original">("ai");
+export function ReaderModal({ article, source, savedIds, onSave, onClose, onMarkRead, initialTab = "ai" }: ReaderModalProps) {
+  const [tab, setTab] = useState<"ai" | "original">(initialTab);
   const [detail, setDetail] = useState<ArticleDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const open = article !== null;
 
-  // Mark as read and load detail when opened
+  // Reset tab and clear cached detail when article changes
   useEffect(() => {
     if (!article) { setDetail(null); return; }
-    setTab("ai");
+    setTab(initialTab);
+    setDetail(null);
     onMarkRead(article.id);
-  }, [article, onMarkRead]);
+  }, [article, onMarkRead, initialTab]);
 
   const loadDetail = useCallback(async (id: string) => {
     setLoadingDetail(true);
