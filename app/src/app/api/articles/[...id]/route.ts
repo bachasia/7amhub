@@ -8,9 +8,12 @@ import { articles, sources } from "@/lib/db/schema";
 import { serializeArticle } from "@/lib/serialize";
 import { extractFullText } from "@/lib/ingest/extract";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// Article IDs are full URLs (e.g. "https://vnexpress.net/...") so they span multiple
+// path segments when used in a route. The catch-all [...id] captures them all and rejoins.
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string[] }> }) {
   const { id } = await params;
-  const a = db.select().from(articles).where(eq(articles.id, id)).get();
+  const articleId = id.join("/");
+  const a = db.select().from(articles).where(eq(articles.id, articleId)).get();
   if (!a) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   let blocks: { t: "p" | "img"; v: string }[] = [];
@@ -27,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           content: JSON.stringify(ex.blocks),
           ...(!a.image && ex.image ? { image: ex.image } : {}),
         })
-        .where(eq(articles.id, id))
+        .where(eq(articles.id, articleId))
         .run();
     }
   }
