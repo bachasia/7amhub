@@ -60,7 +60,11 @@ articlesRoute.get('/:id', async (c) => {
     if (ex) {
       blocks = ex.blocks;
       db.update(articles)
-        .set({ fullText: ex.text, content: JSON.stringify(ex.blocks) })
+        .set({
+          fullText: ex.text,
+          content: JSON.stringify(ex.blocks),
+          ...(!a.image && ex.image ? { image: ex.image } : {}),
+        })
         .where(eq(articles.id, id))
         .run();
     }

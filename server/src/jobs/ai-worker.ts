@@ -37,7 +37,12 @@ async function processOne(a: typeof articles.$inferSelect): Promise<boolean> {
     if (ex) {
       fullText = ex.text;
       db.update(articles)
-        .set({ fullText, content: JSON.stringify(ex.blocks) })
+        .set({
+          fullText,
+          content: JSON.stringify(ex.blocks),
+          // bổ sung ảnh đại diện nếu RSS không kèm (vd feed Tinh Tế / FeedBurner)
+          ...(!a.image && ex.image ? { image: ex.image } : {}),
+        })
         .where(eq(articles.id, a.id))
         .run();
     }
