@@ -7,7 +7,7 @@
     "dev:all": "concurrently \"next dev\" \"npm run worker\"",
     "build": "next build",
     "start": "next start",
-    "worker": "tsx worker.ts",
+    "worker": "node --env-file=.env.local --import=tsx worker.ts",
     "lint": "eslint",
     "db:migrate": "tsx src/lib/db/migrate.ts",
     "db:gen": "drizzle-kit generate"
