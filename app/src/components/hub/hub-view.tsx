@@ -8,9 +8,11 @@ import { useSaved } from "@/hooks/use-saved";
 import { useRead } from "@/hooks/use-read";
 import { useTheme } from "@/hooks/use-theme";
 import { useMarket } from "@/hooks/use-market";
+import { useWorkerStatus } from "@/hooks/use-worker-status";
 import { MarketTicker } from "./market-ticker";
 import { SourceSidebar } from "./source-sidebar";
 import { CategoryChips } from "./category-chips";
+import { catLabel } from "@/lib/categories";
 import { TrendingPanel } from "./trending-panel";
 import { ChatPanel } from "./chat-panel";
 import { DigestView } from "./digest-view";
@@ -27,6 +29,7 @@ type RightTab = "trending" | "chat";
 export function HubView() {
   const { theme, toggle: toggleTheme } = useTheme();
   const market = useMarket();
+  const { status: workerStatus, lastSeen: workerLastSeen } = useWorkerStatus();
   const { sources, reload: reloadSources, addSource, deleteSource, updateSource } = useSources();
   const { topics } = useTrending(7);
   const { data: digest, loading: digestLoading } = useDigest();
@@ -106,7 +109,7 @@ export function HubView() {
     flexShrink: 0,
   };
 
-  const feedTitle = tab === "digest" ? "Đề xuất 7AM" : tab === "saved" ? "Đã lưu" : activeTopic ? `#${activeTopic}` : activeCat ? activeCat : activeSource ? (sources.find((s) => s.id === activeSource)?.label ?? "Dòng tin") : "Dòng tin";
+  const feedTitle = tab === "digest" ? "Đề xuất 7AM" : tab === "saved" ? "Đã lưu" : activeTopic ? `#${activeTopic}` : activeCat ? catLabel(activeCat) : activeSource ? (sources.find((s) => s.id === activeSource)?.label ?? "Dòng tin") : "Dòng tin";
 
   const displayArticles = tab === "feed" ? items : [];
   const displayCount = tab === "feed" ? total : tab === "saved" ? savedArticles.length : 0;
@@ -178,6 +181,9 @@ export function HubView() {
           <button style={tabStyle(tab === "feed")} onClick={() => setTab("feed")}>Dòng tin</button>
           <button style={tabStyle(tab === "saved")} onClick={() => setTab("saved")}>Đã lưu</button>
         </div>
+
+        {/* Worker status dot */}
+        <WorkerDot status={workerStatus} lastSeen={workerLastSeen} />
 
         <button style={iconBtnStyle} aria-label="Làm mới" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw size={18} style={{ animation: refreshing ? "spin .8s linear infinite" : "none" }} />
@@ -380,9 +386,41 @@ export function HubView() {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.35; } }
         @media (max-width: 1140px) { .hub-body { grid-template-columns: 240px minmax(0,1fr) !important; } .hub-body > div:last-child { display: none; } }
         @media (max-width: 820px) { .hub-body { grid-template-columns: 1fr !important; } .hub-body > div:first-child { display: none; } .menu-btn-hub { display: grid !important; } }
       `}</style>
+    </div>
+  );
+}
+
+type WorkerDotProps = { status: "alive" | "offline" | "unknown"; lastSeen: number | null };
+function WorkerDot({ status, lastSeen }: WorkerDotProps) {
+  const color = status === "alive" ? "#22c55e" : status === "offline" ? "#ef4444" : "#94a3b8";
+  const label =
+    status === "alive"
+      ? `Worker đang chạy${lastSeen ? ` · ${Math.round((Date.now() - lastSeen) / 60_000)} phút trước` : ""}`
+      : status === "offline"
+      ? "Worker không hoạt động"
+      : "Đang kiểm tra worker…";
+
+  return (
+    <div
+      title={label}
+      aria-label={label}
+      style={{ display: "flex", alignItems: "center", gap: 5, cursor: "default", flexShrink: 0 }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: color,
+          display: "block",
+          animation: status === "alive" ? "pulse-dot 2s ease-in-out infinite" : "none",
+        }}
+      />
+      <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 500 }}>Worker</span>
     </div>
   );
 }
