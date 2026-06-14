@@ -283,6 +283,7 @@ a{color:inherit;text-decoration:none}
     <span class="top-spacer"></span>
     <div class="tabs">
       <button class="tab" data-tab="all" data-on="1">Dòng tin</button>
+      <button class="tab" data-tab="digest">Đề xuất 7AM</button>
       <button class="tab" data-tab="saved">Đã lưu</button>
     </div>
     <button class="iconbtn refresh-btn" aria-label="Tải lại"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
@@ -343,48 +344,26 @@ a{color:inherit;text-decoration:none}
 
 <script>
 /* ============================== SOURCES + CATEGORIES ============================== */
-// Each source = one RSS feed mapped to a category. Add more by pushing here.
-const DEFAULT_SOURCES = [
-  { id:'tg', label:'VnExpress · Thế giới',   cat:'world',   url:'https://vnexpress.net/rss/the-gioi.rss' },
-  { id:'sh', label:'VnExpress · Số hóa',      cat:'tech',    url:'https://vnexpress.net/rss/so-hoa.rss' },
-  { id:'kd', label:'VnExpress · Kinh doanh',  cat:'biz',     url:'https://vnexpress.net/rss/kinh-doanh.rss' },
-  { id:'kh', label:'VnExpress · Khoa học',    cat:'science', url:'https://vnexpress.net/rss/khoa-hoc.rss' },
-  { id:'ts', label:'VnExpress · Thời sự',     cat:'news',    url:'https://vnexpress.net/rss/thoi-su.rss' },
-];
-// user-managed feed list (persisted) — falls back to defaults
-let SOURCES = (()=>{ try{ const s=JSON.parse(localStorage.getItem('hub.feeds'));
-  if(Array.isArray(s)&&s.length) return s; }catch(e){} return DEFAULT_SOURCES.slice(); })();
-function saveSources(){ localStorage.setItem('hub.feeds', JSON.stringify(SOURCES)); }
+// Backend base URL: same-origin khi được server phục vụ; fallback localhost khi mở file trực tiếp.
+const API_BASE = location.protocol.startsWith('http') ? '' : 'http://localhost:8787';
+// Danh sách nguồn + dữ liệu trending lấy từ backend (người dùng chỉ quản lý nguồn RSS).
+let SOURCES = [];
+let TRENDING = [];   // [{tag,count}] từ /api/trending
+let DIGEST = null;   // bản tin "Đề xuất 7AM" từ /api/digest/today
+async function loadSources(){
+  try{ const r=await fetch(API_BASE+'/api/sources'); SOURCES = await r.json(); }
+  catch(e){ SOURCES = []; }
+}
 const CAT = {
   world:  {label:'Thế giới'},  tech:{label:'Công nghệ'},
   science:{label:'Khoa học'},  news:{label:'Thời sự'}, biz:{label:'Kinh doanh'},
 };
 const catColor = {world:'var(--world)',tech:'var(--tech)',science:'var(--science)',news:'var(--news)',biz:'var(--biz)'};
 
-// AI auto-classification stub — assigns a category per article (keyword heuristic now).
-// Swap for a real LLM/zero-shot classifier later; feeds no longer carry a manual category.
-const CAT_KEYWORDS={
-  tech:['ai',' gpt','iphone','samsung','google','phần mềm','ứng dụng','chip','công nghệ','máy tính','robot','smartphone','laptop'],
-  biz:['kinh tế','kinh doanh','doanh nghiệp','thị trường','chứng khoán','giá ','usd','ngân hàng','lạm phát','xuất khẩu','đầu tư','lợi nhuận'],
-  science:['khoa học','nghiên cứu','vũ trụ','nasa','tế bào','gen ','thí nghiệm','phát hiện','sao hỏa','khí hậu'],
-  news:['việt nam','hà nội','tp hcm','công an','chính phủ','bộ ','quốc hội','tai nạn','thời tiết','học sinh','giao thông'],
-  world:['mỹ','trung quốc','nga','ukraine','châu âu','quốc tế','tổng thống','israel','liên hợp quốc']
-};
-function aiClassify(a){
-  const t=((a.title||'')+' '+(a.summary||'')).toLowerCase();
-  let best='world', bestN=0;
-  for(const [cat,kws] of Object.entries(CAT_KEYWORDS)){
-    const n=kws.reduce((c,k)=>c+(t.includes(k)?1:0),0);
-    if(n>bestN){ bestN=n; best=cat; }
-  }
-  return best;
-}
+// AI phân loại/tóm tắt/gắn tag đã chuyển sang backend (Claude Haiku). Client chỉ hiển thị.
 const srcById = id => SOURCES.find(s=>s.id===id);
 function faviconUrl(src){ let host='vnexpress.net'; try{ host=new URL(src.url).hostname; }catch(e){}
   return `https://www.google.com/s2/favicons?sz=64&domain=${host}`; }
-
-// keyword set for honest tag/topic extraction (only shown when present in a title)
-const KEYWORDS = ['AI','GPT','OpenAI','Anthropic','Google','Apple','iPhone','Tesla','Nvidia','Bitcoin','Trump','Trung Quốc','Mỹ','Việt Nam'];
 
 /* offline fallback if every feed fails */
 const SAMPLE = [
@@ -414,9 +393,7 @@ const bmIco=on=>`<svg viewBox="0 0 24 24" fill="${on?'currentColor':'none'}" str
 
 /* ============================== DERIVE / FILTER ============================== */
 function tagsOf(a){
-  const t=[]; const title=a.title||'';
-  for(const k of KEYWORDS){ if(title.toLowerCase().includes(k.toLowerCase())){ t.push(k); if(t.length>=2) break; } }
-  return t;
+  return Array.isArray(a.tags) ? a.tags.slice(0,2) : [];
 }
 function baseList(){ // tab scope, before source/cat/search
   let l=ARTICLES.slice();
@@ -468,7 +445,36 @@ function renderCatChips(){
       <span class="c-dot" style="background:${catColor[k]}"></span>${CAT[k].label}</button>`).join('');
 }
 
+// Template 1 dòng tin — dùng chung cho Dòng tin, Đã lưu và Đề xuất 7AM.
+function rowHtml(a){
+  const s=srcById(a.sourceId);
+  const tags=tagsOf(a).map(t=>`<span class="tag">#${t}</span>`).join('');
+  const favi = s ? `<img class="src-favi" src="${faviconUrl(s)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '';
+  const thumb = a.img
+    ? `<div class="row-thumb" style="background-image:url('${a.img}')"></div>`
+    : `<div class="row-thumb ph">${phImg}</div>`;
+  return `<article class="row ${readSet.has(a.id)?'read':''}" data-id="${a.id}">
+    <span class="unread"></span>
+    <div class="row-main">
+      <div class="row-meta">
+        ${favi}
+        <span class="src-name">${s?s.label:'Nguồn'}</span>
+        <span class="sep">·</span><span class="row-time">${a.time||''}</span>
+      </div>
+      <h3 class="row-title">${a.title}</h3>
+      <p class="row-sum">${a.summary||''}</p>
+      <div class="row-foot">
+        ${a.cat&&CAT[a.cat]?`<span class="tag">${CAT[a.cat].label}</span>`:''}${tags}
+        <button class="row-act save ${savedSet.has(a.id)?'on':''}" data-act="save">${bmIco(savedSet.has(a.id))} Lưu</button>
+        <a class="row-act" data-act="open">Mở <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      </div>
+    </div>
+    ${thumb}
+  </article>`;
+}
+
 function renderList(){
+  if(view.tab==='digest'){ renderDigest(); return; }
   const items=filtered();
   const shown=items.slice(0, view.offset);
   const remaining=items.length - shown.length;
@@ -478,55 +484,48 @@ function renderList(){
   $('feedCount').textContent = items.length ? `${items.length} tin${view.sort==='unread'?' chưa đọc':''}` : '';
   const list=$('list');
   if(!items.length){ list.innerHTML=`<div class="empty">Không có tin nào khớp bộ lọc.</div>`; return; }
-  list.innerHTML=shown.map(a=>{
-    const s=srcById(a.sourceId);
-    const tags=tagsOf(a).map(t=>`<span class="tag">#${t}</span>`).join('');
-    const favi = s ? `<img class="src-favi" src="${faviconUrl(s)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '';
-    const thumb = a.img
-      ? `<div class="row-thumb" style="background-image:url('${a.img}')"></div>`
-      : `<div class="row-thumb ph">${phImg}</div>`;
-    return `<article class="row ${readSet.has(a.id)?'read':''}" data-id="${a.id}">
-      <span class="unread"></span>
-      <div class="row-main">
-        <div class="row-meta">
-          ${favi}
-          <span class="src-name">${s?s.label:'Nguồn'}</span>
-          <span class="sep">·</span><span class="row-time">${a.time||''}</span>
-        </div>
-        <h3 class="row-title">${a.title}</h3>
-        <p class="row-sum">${a.summary||''}</p>
-        <div class="row-foot">
-          <span class="tag">${CAT[a.cat].label}</span>${tags}
-          <button class="row-act save ${savedSet.has(a.id)?'on':''}" data-act="save">${bmIco(savedSet.has(a.id))} Lưu</button>
-          <a class="row-act" data-act="open">Mở <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-        </div>
-      </div>
-      ${thumb}
-    </article>`;
-  }).join('') + (remaining > 0
+  list.innerHTML=shown.map(rowHtml).join('') + (remaining > 0
     ? `<button class="load-more">Xem thêm ${remaining} tin</button>`
     : '');
+}
+
+// "Đề xuất 7AM" — bản tin nóng tổng hợp hằng ngày do Claude Sonnet chọn lọc.
+function renderDigest(){
+  $('feedTitle').textContent='Đề xuất 7AM';
+  const list=$('list');
+  if(!DIGEST || !DIGEST.hasDigest || (!DIGEST.picks||[]).length){
+    $('feedCount').textContent='';
+    list.innerHTML=`<div class="empty">Chưa có bản tin tổng hợp hôm nay.<br>Bản tin được tạo tự động mỗi sáng 7:00 — hoặc bấm "Làm mới" rồi thử lại.</div>`;
+    return;
+  }
+  $('feedCount').textContent=DIGEST.date||'';
+  const sec=(title,items)=> items.length?`
+    <div class="t-label" style="margin:18px 2px 8px">${title}</div>
+    ${items.map(rowHtml).join('')}`:'';
+  const byCat=(DIGEST.byCat||[]).map(g=>sec(CAT[g.cat]?CAT[g.cat].label:g.cat, g.items)).join('');
+  list.innerHTML=`
+    ${DIGEST.intro?`<p class="row-sum" style="font-size:15px;margin:6px 2px 4px;color:var(--fg)">${DIGEST.intro}</p>`:''}
+    ${sec('🔥 Tin nổi bật nhất', DIGEST.picks||[])}
+    ${byCat}`;
 }
 
 function renderTrending(){
   // featured = newest article in current tab scope
   const all=baseList().slice().sort((x,y)=>y.ts-x.ts);
   const f=all[0];
+  const fcat = f && f.cat ? CAT[f.cat] : null;
   $('featured').innerHTML = f ? `
     <div class="feat" data-id="${f.id}">
-      <div class="feat-img">${phImg}</div>
+      ${f.img?`<div class="feat-img" style="background-image:url('${f.img}');background-size:cover;background-position:center"></div>`:`<div class="feat-img">${phImg}</div>`}
       <div class="feat-body">
-        <div class="feat-cat" style="color:${catColor[f.cat]}"><span class="s-dot" style="background:currentColor"></span>${CAT[f.cat].label}</div>
+        ${fcat?`<div class="feat-cat" style="color:${catColor[f.cat]}"><span class="s-dot" style="background:currentColor"></span>${fcat.label}</div>`:''}
         <div class="feat-title">${f.title}</div>
         <div class="feat-sum">${f.summary||''}</div>
       </div>
     </div>` : `<div class="empty" style="padding:20px 4px">—</div>`;
 
-  // topics = keyword frequency across all loaded titles (real extraction)
-  const freq={};
-  ARTICLES.forEach(a=>{ const tt=(a.title+' '+a.summary).toLowerCase();
-    KEYWORDS.forEach(k=>{ if(tt.includes(k.toLowerCase())) freq[k]=(freq[k]||0)+1; }); });
-  const top=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  // topics = tag trending từ backend (/api/trending)
+  const top=TRENDING.map(t=>[t.tag,t.count]);
   const max=top.length?top[0][1]:1;
   $('topics').innerHTML = top.length ? top.map(([k,n])=>`
     <div class="topic" data-q="${k}">
@@ -543,12 +542,9 @@ function toggleSave(id){ savedSet.has(id)?savedSet.delete(id):savedSet.add(id);
 
 function openOriginal(id){ const a=byId(id); if(!a) return; markRead(id); render(); window.open(a.url,'_blank','noopener'); }
 
-// AI summary stub — currently condenses the RSS lead into a paragraph + key points.
-// Swap this for a real LLM call (send a.title + full article text → return {lead, points}).
+// Tóm tắt AI lấy trực tiếp từ backend (Claude Haiku) — đã gắn sẵn vào mỗi bài.
 function aiSummarize(a){
-  const text=(a.summary||'').trim();
-  const sentences=text.split(/(?<=[.!?…])\s+/).map(s=>s.trim()).filter(Boolean);
-  return { lead:text, points: sentences.length>1 ? sentences.slice(0,3) : [] };
+  return { lead: a.lead || a.summary || '', points: Array.isArray(a.points) ? a.points : [] };
 }
 
 const reader=$('reader'), readerScrim=$('readerScrim');
@@ -561,18 +557,13 @@ const DEMO_PARAS=[
   'Để bật toàn văn ổn định cho mọi nguồn, ứng dụng nên dùng một dịch vụ readability phía máy chủ: nhận URL bài viết, tải HTML và trả về phần thân bài đã được làm sạch.'
 ];
 
-// Fetch + extract the original article body through a CORS proxy; fall back to demo content.
+// Toàn văn bài gốc lấy từ backend (đã trích bằng readability server-side).
 async function loadOriginal(a, pane){
   pane.innerHTML=`<div class="art-loading"><div class="spinner"></div><p>Đang tải toàn văn…</p></div>`;
   let paras=[];
   try{
-    const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(a.url));
-    if(r.ok){
-      const html=await r.text();
-      const doc=new DOMParser().parseFromString(html,'text/html');
-      const nodes=[...doc.querySelectorAll('.fck_detail p, article p, p.Normal')];
-      paras=[...new Set(nodes.map(n=>n.textContent.replace(/\s+/g,' ').trim()))].filter(t=>t.length>60).slice(0,14);
-    }
+    const r=await fetch(API_BASE+'/api/articles/'+encodeURIComponent(a.id));
+    if(r.ok){ const j=await r.json(); paras=Array.isArray(j.paragraphs)?j.paragraphs:[]; }
   }catch(e){}
   const demo=!paras.length;
   if(demo) paras=[a.summary,...DEMO_PARAS].filter(Boolean);
@@ -601,7 +592,7 @@ function openReader(id){
       <button class="reader-tab" data-tab="origin" data-on="0">Bài gốc</button>
     </div>
     <div class="reader-pane" data-pane="summary" data-on="1">
-      <div class="ai-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9l-5.6 1.9L12 16l-1.9-5.1L4.5 9l5.6-1.4z"/></svg>Tóm tắt bằng AI<span class="ai-note">bản demo</span></div>
+      <div class="ai-badge"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9l-5.6 1.9L12 16l-1.9-5.1L4.5 9l5.6-1.4z"/></svg>Tóm tắt bằng AI<span class="ai-note">Claude</span></div>
       <p class="reader-lead">${sum.lead||'—'}</p>
       ${sum.points.length?`<ul class="reader-points">${sum.points.map(p=>`<li>${p}</li>`).join('')}</ul>`:''}
     </div>
@@ -670,7 +661,7 @@ function renderMgr(){
     feedMgr.querySelector('#mgrUrl').value=s.url; } }
 }
 
-feedMgr.addEventListener('click',e=>{
+feedMgr.addEventListener('click',async e=>{
   const b=e.target.closest('[data-mgr]'); if(!b) return;
   const act=b.dataset.mgr;
   if(act==='close'){ closeMgr(); return; }
@@ -678,7 +669,8 @@ feedMgr.addEventListener('click',e=>{
   if(act==='edit'){ editId=b.closest('.mgr-row').dataset.fid; renderMgr(); return; }
   if(act==='del'){
     const fid=b.closest('.mgr-row').dataset.fid;
-    SOURCES=SOURCES.filter(s=>s.id!==fid); saveSources();
+    try{ await fetch(API_BASE+'/api/sources/'+fid,{method:'DELETE'}); }catch(_){}
+    await loadSources();
     if(view.source===fid) view.source=null;
     if(editId===fid) editId=null;
     renderMgr(); loadFeeds(); return;
@@ -688,9 +680,16 @@ feedMgr.addEventListener('click',e=>{
     let url=feedMgr.querySelector('#mgrUrl').value.trim();
     if(!label||!url){ showToast('Nhập tên nguồn và URL RSS.'); return; }
     if(!/^https?:\/\//i.test(url)) url='https://'+url;
-    if(editId){ const s=srcById(editId); if(s){ s.label=label; s.url=url; } editId=null; }
-    else SOURCES.push({ id:'f'+Date.now(), label, url });
-    saveSources(); renderMgr(); loadFeeds(); return;
+    try{
+      if(editId){
+        await fetch(API_BASE+'/api/sources/'+editId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,url})});
+        editId=null;
+      } else {
+        const r=await fetch(API_BASE+'/api/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,url})});
+        if(!r.ok){ const er=await r.json().catch(()=>({})); showToast(er.error||'Không thêm được nguồn.'); return; }
+      }
+    }catch(_){ showToast('Không kết nối được server.'); return; }
+    await loadSources(); renderMgr(); loadFeeds(); return;
   }
 });
 mgrScrim.addEventListener('click',closeMgr);
@@ -717,16 +716,22 @@ $('topics').addEventListener('click',e=>{ const t=e.target.closest('.topic'); if
 $('sources').addEventListener('click',e=>{
   if(e.target.closest('[data-act="mgr"]')){ openMgr(); return; }
   const l=e.target.closest('.s-link'); if(!l) return;
-  view.source=l.dataset.source||null; view.cat=null;
+  view.source=l.dataset.source||null; view.cat=null; setFeedTab();
   document.querySelector('.sources').classList.remove('open');
   view.offset=PAGE_SIZE; render();
 });
 // category chips
 $('catChips').addEventListener('click',e=>{
   const c=e.target.closest('.chip'); if(!c) return;
-  view.cat = view.cat===c.dataset.cat ? null : c.dataset.cat;
+  view.cat = view.cat===c.dataset.cat ? null : c.dataset.cat; setFeedTab();
   view.offset=PAGE_SIZE; render();
 });
+// đưa về tab "Dòng tin" khi chọn nguồn/danh mục
+function setFeedTab(){
+  if(view.tab==='all') return;
+  view.tab='all';
+  document.querySelectorAll('[data-tab]').forEach(x=>x.dataset.on=x.dataset.tab==='all'?1:0);
+}
 // sort chips
 document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{
   view.sort=b.dataset.sort;
@@ -754,46 +759,51 @@ document.querySelectorAll('.theme-btn').forEach(b=>b.addEventListener('click',()
   const t=document.documentElement.dataset.theme==='dark'?'light':'dark';
   localStorage.setItem(LS_THEME,t); applyTheme(t); }));
 
-/* ============================== RSS LOADING ============================== */
-function parseItem(item, src){
-  const box=document.createElement('div'); box.innerHTML=item.description||item.content||'';
-  const imgEl=box.querySelector('img');
-  const img=(imgEl&&imgEl.getAttribute('src'))||item.thumbnail||(item.enclosure&&item.enclosure.link)||'';
-  const text=box.textContent.replace(/\s+/g,' ').trim();
-  const title=(item.title||'').trim();
-  return { id:item.guid||item.link, sourceId:src.id, cat:aiClassify({title,summary:text}), img,
-    title, summary:text, time:relTime(item.pubDate),
-    ts:(new Date(item.pubDate)).getTime()||0, url:item.link };
+/* ============================== TẢI DỮ LIỆU TỪ BACKEND ============================== */
+// Trộn các bài trong digest vào ARTICLES để reader/byId luôn tìm được (digest có thể chứa tin cũ).
+function mergeArticles(extra){
+  const seen=new Set(ARTICLES.map(a=>a.id));
+  for(const a of extra){ if(a && !seen.has(a.id)){ ARTICLES.push({...a, ts:a.publishedAt||0}); seen.add(a.id); } }
 }
-function relTime(s){ const d=new Date(s); if(isNaN(d)) return '';
-  const m=Math.max(0,Math.floor((Date.now()-d.getTime())/60000));
-  if(m<1) return 'Vừa xong'; if(m<60) return `${m} phút trước`;
-  const h=Math.floor(m/60); if(h<24) return `${h} giờ trước`; return `${Math.floor(h/24)} ngày trước`; }
+async function loadTrending(){
+  try{ const r=await fetch(API_BASE+'/api/trending'); TRENDING=await r.json(); }catch(e){ TRENDING=[]; }
+}
+async function loadDigest(){
+  try{ const r=await fetch(API_BASE+'/api/digest/today'); DIGEST=await r.json();
+    if(DIGEST){ mergeArticles(DIGEST.picks||[]); (DIGEST.byCat||[]).forEach(g=>mergeArticles(g.items||[])); }
+  }catch(e){ DIGEST=null; }
+}
 
 async function loadFeeds(){
   loader.classList.add('show');
   document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.add('spin'));
-  const results=await Promise.allSettled(SOURCES.map(async src=>{
-    const api='https://api.rss2json.com/v1/api.json?count=20&rss_url='+encodeURIComponent(src.url);
-    const r=await fetch(api); const j=await r.json();
-    if(j.status!=='ok'||!Array.isArray(j.items)) throw new Error('bad');
-    return j.items.map(it=>parseItem(it,src));
-  }));
-  const items=results.filter(r=>r.status==='fulfilled').flatMap(r=>r.value).filter(a=>a.title);
-  const failed=results.filter(r=>r.status==='rejected').length;
-  if(items.length){ ARTICLES=items; }
-  else { ARTICLES=SAMPLE.slice(); showToast('Không tải được RSS (CORS / giới hạn proxy). Đang hiển thị tin mẫu.'); }
-  if(items.length && failed) showToast(`${failed}/${SOURCES.length} nguồn lỗi — hiển thị các nguồn còn lại.`);
-  loader.classList.remove('show');
-  document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.remove('spin'));
-  render();
+  try{
+    await loadSources();
+    const r=await fetch(API_BASE+'/api/articles?limit=60&sort=latest');
+    const j=await r.json();
+    ARTICLES=(j.items||[]).map(a=>({...a, ts:a.publishedAt||0}));
+    await Promise.all([loadTrending(), loadDigest()]);
+    if(!ARTICLES.length) showToast('Chưa có tin nào — server đang fetch RSS & xử lý AI, thử "Làm mới" sau giây lát.');
+  }catch(e){
+    ARTICLES=SAMPLE.slice(); showToast('Không kết nối được server. Đang hiển thị tin mẫu.');
+  }finally{
+    loader.classList.remove('show');
+    document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.remove('spin'));
+    render();
+  }
 }
-document.querySelectorAll('.refresh-btn').forEach(b=>b.addEventListener('click',loadFeeds));
+// Nút "Làm mới": yêu cầu server fetch RSS + xử lý AI ngay, rồi tải lại.
+async function refreshNow(){
+  document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.add('spin'));
+  try{ await fetch(API_BASE+'/api/refresh',{method:'POST'}); }catch(e){}
+  await loadFeeds();
+}
+document.querySelectorAll('.refresh-btn').forEach(b=>b.addEventListener('click',refreshNow));
 
 /* ============================== INIT ============================== */
 applyTheme(localStorage.getItem(LS_THEME)||'light');
-ARTICLES=SAMPLE.slice(); render();   // paint instantly
-loadFeeds();                          // then pull live multi-source feed
+ARTICLES=SAMPLE.slice(); render();   // vẽ tạm tin mẫu
+loadFeeds();                          // rồi nạp dữ liệu thật từ backend
 </script>
 </body>
 </html>

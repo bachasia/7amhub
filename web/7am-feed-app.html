@@ -337,14 +337,10 @@ a{color:inherit;text-decoration:none}
 
 <script>
 /* ============================== DATA ==============================
-   FEEDS = real RSS sources, each mapped to a category. loadFeed() fetches
-   them through a CORS-friendly JSON proxy (rss2json) and fills ARTICLES.
-   The sample cards below stay as offline fallback if the fetch fails.
-   To add a feed: push {cat, url} and (if new) register the cat in CAT +
-   add its --color tokens / .card[data-cat=...] CSS. */
-const FEEDS = [
-  { cat:'world', url:'https://vnexpress.net/rss/the-gioi.rss' },
-];
+   loadFeed() lấy tin từ backend (/api/articles) — server đã fetch RSS, phân loại
+   + tóm tắt bằng AI. Các card mẫu bên dưới chỉ là fallback offline khi mất kết nối.
+   Quản lý nguồn RSS thực hiện ở giao diện desktop (news-hub). */
+const API_BASE = location.protocol.startsWith('http') ? '' : 'http://localhost:8787';
 
 const CAT = {
   all:     {label:'Tất cả'},
@@ -386,6 +382,7 @@ const ARTICLES = [
 const LS_SAVED='7am.saved', LS_THEME='7am.theme';
 let saved = new Set(JSON.parse(localStorage.getItem(LS_SAVED) || '[]'));
 let filter = 'all';
+let DIGEST = null;   // bản tin "Đề xuất 7AM" từ /api/digest/today
 
 const feed   = document.getElementById('feed');
 const rail   = document.getElementById('rail');
@@ -399,7 +396,10 @@ const phGlyph = `<svg class="ph-glyph" viewBox="0 0 24 24" fill="none" stroke="c
 const catColor = {world:'var(--world)',tech:'var(--tech)',science:'var(--science)',news:'var(--news)',biz:'var(--biz)'};
 
 /* ============================== RENDER ============================== */
+function digestPicks(){ return (DIGEST && DIGEST.picks) ? DIGEST.picks : []; }
+
 function visibleArticles(){
+  if(filter==='digest') return digestPicks();
   return filter==='all' ? ARTICLES : ARTICLES.filter(a=>a.cat===filter);
 }
 
@@ -410,7 +410,9 @@ function activeCatKeys(){
 }
 
 function renderChips(){
-  chips.innerHTML = activeCatKeys().map(k=>
+  const digestChip = digestPicks().length
+    ? `<button class="chip" data-cat="digest" data-on="${filter==='digest'?1:0}">🔥 7AM</button>` : '';
+  chips.innerHTML = digestChip + activeCatKeys().map(k=>
     `<button class="chip" data-cat="${k}" data-on="${k===filter?1:0}">${CAT[k].label}</button>`).join('');
 }
 
@@ -430,7 +432,7 @@ function renderQueue(){
     <div class="q-item" data-id="${a.id}">
       <div class="q-thumb">${phGlyph}</div>
       <div class="q-meta">
-        <div class="q-cat" style="color:${catColor[a.cat]||'var(--muted)'}"><span class="side-dot" style="background:currentColor"></span>${CAT[a.cat].label}</div>
+        <div class="q-cat" style="color:${catColor[a.cat]||'var(--muted)'}"><span class="side-dot" style="background:currentColor"></span>${CAT[a.cat]?.label||''}</div>
         <div class="q-title">${a.title}</div>
       </div>
     </div>`).join('');
@@ -448,9 +450,9 @@ function renderFeed(){
   feed.innerHTML = items.map((a,i)=>`
     <article class="card" data-cat="${a.cat}" data-id="${a.id}">
       <div class="card-inner" data-act="open">
-        <div class="card-media ph">
-          ${phGlyph}
-          <span class="pill">${CAT[a.cat].label}</span>
+        <div class="card-media${a.img?'':' ph'}"${a.img?` style="background-image:url('${a.img}')"`:''}>
+          ${a.img?'':phGlyph}
+          ${a.cat&&CAT[a.cat]?`<span class="pill">${CAT[a.cat].label}</span>`:''}
           <button class="bm" data-act="save" data-saved="${saved.has(a.id)?1:0}" aria-label="Lưu bài">${bmIcon}</button>
           ${i===0 ? `<div class="hint">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>'}<span>Vuốt lên</span></div>`:''}
         </div>
@@ -600,7 +602,7 @@ document.getElementById('savedList').addEventListener('click',e=>{
   }
 });
 
-/* ============================== RSS LOADING ============================== */
+/* ============================== TẢI TIN TỪ BACKEND ============================== */
 const loader=document.getElementById('loader');
 const toast=document.getElementById('toast');
 let toastTimer;
@@ -611,61 +613,41 @@ function showToast(msg){
   toastTimer=setTimeout(()=>toast.classList.remove('show'),4200);
 }
 
-// VnExpress RSS keeps the thumbnail + summary inside <description> as HTML.
-function parseItem(item, cat){
-  const box=document.createElement('div');
-  box.innerHTML=item.description||item.content||'';
-  const imgEl=box.querySelector('img');
-  const img=(imgEl&&imgEl.getAttribute('src'))||item.thumbnail||(item.enclosure&&item.enclosure.link)||'';
-  const text=box.textContent.replace(/\s+/g,' ').trim();
-  let host='vnexpress.net';
-  try{ host=new URL(item.link).hostname.replace(/^www\./,''); }catch(e){}
-  return {
-    id:item.guid||item.link,
-    cat, img,
-    title:(item.title||'').trim(),
-    summary:text,
-    source:host,
-    time:relTime(item.pubDate),
-    url:item.link,
-  };
+async function loadDigest(){
+  try{ const r=await fetch(API_BASE+'/api/digest/today'); DIGEST=await r.json(); }
+  catch(e){ DIGEST=null; }
 }
 
-function relTime(s){
-  const d=new Date(s); if(isNaN(d)) return '';
-  const mins=Math.max(0,Math.floor((Date.now()-d.getTime())/60000));
-  if(mins<1) return 'Vừa xong';
-  if(mins<60) return `${mins} phút trước`;
-  const h=Math.floor(mins/60); if(h<24) return `${h} giờ trước`;
-  return `${Math.floor(h/24)} ngày trước`;
-}
-
+// Lấy tin đã được backend phân loại + tóm tắt bằng AI.
 async function loadFeed(){
   loader.classList.add('show');
   document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.add('refresh-spin'));
   try{
-    const batches=await Promise.all(FEEDS.map(async f=>{
-      const api='https://api.rss2json.com/v1/api.json?count=25&rss_url='+encodeURIComponent(f.url);
-      const r=await fetch(api);
-      const j=await r.json();
-      if(j.status!=='ok'||!Array.isArray(j.items)) throw new Error('bad feed');
-      return j.items.map(it=>parseItem(it,f.cat));
-    }));
-    const items=batches.flat().filter(a=>a.title);
+    const r=await fetch(API_BASE+'/api/articles?limit=60&sort=latest');
+    const j=await r.json();
+    const items=(j.items||[]).filter(a=>a.title);
+    await loadDigest();
     if(items.length){
       ARTICLES.length=0; ARTICLES.push(...items);
-      filter='all';
-    } else { throw new Error('empty'); }
+      if(filter!=='digest') filter='all';
+    } else {
+      showToast('Chưa có tin — server đang fetch RSS & xử lý AI. Thử tải lại sau giây lát.');
+    }
   }catch(e){
-    // keep the sample fallback already sitting in ARTICLES
-    showToast('Không tải được feed trực tiếp (RSS bị chặn CORS / giới hạn proxy). Đang hiển thị tin mẫu.');
+    showToast('Không kết nối được server. Đang hiển thị tin mẫu.');
   }finally{
     loader.classList.remove('show');
     document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.remove('refresh-spin'));
     renderChips(); renderSideNav(); renderFeed(); feed.scrollTo({top:0});
   }
 }
-document.querySelectorAll('.refresh-btn').forEach(b=>b.addEventListener('click',loadFeed));
+// Nút tải lại: yêu cầu server fetch RSS + xử lý AI ngay, rồi nạp lại.
+async function refreshNow(){
+  document.querySelectorAll('.refresh-btn svg').forEach(s=>s.classList.add('refresh-spin'));
+  try{ await fetch(API_BASE+'/api/refresh',{method:'POST'}); }catch(e){}
+  await loadFeed();
+}
+document.querySelectorAll('.refresh-btn').forEach(b=>b.addEventListener('click',refreshNow));
 
 /* ============================== INIT ============================== */
 function initDate(){
