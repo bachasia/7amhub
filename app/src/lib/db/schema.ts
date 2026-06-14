@@ -33,8 +33,10 @@ export const articles = sqliteTable(
     fetchedAt: integer("fetched_at").notNull(),
     category: text("category"),
     tags: text("tags"),
+    aiTitle: text("ai_title"),
     aiLead: text("ai_lead"),
     aiPoints: text("ai_points"),
+    aiContentVi: text("ai_content_vi"),
     hotScore: real("hot_score").notNull().default(0),
     aiStatus: text("ai_status").notNull().default("pending"),
     aiTries: integer("ai_tries").notNull().default(0),
@@ -67,9 +69,17 @@ export const chatUsage = sqliteTable("chat_usage", {
   count: integer("count").notNull().default(0),
 });
 
+/** Key-value store dùng nội bộ (vd: worker heartbeat). */
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export type Source = typeof sources.$inferSelect;
 export type Article = typeof articles.$inferSelect;
 export type Digest = typeof digests.$inferSelect;
 export type SavedArticle = typeof savedArticles.$inferSelect;
 export type ReadArticle = typeof readArticles.$inferSelect;
 export type ChatUsage = typeof chatUsage.$inferSelect;
+export type Setting = typeof settings.$inferSelect;
