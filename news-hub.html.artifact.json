@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "7AM News Hub — RSS Aggregator",
+  "entry": "news-hub.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "primary": true,
+  "createdAt": "2026-06-13T14:15:19.386Z",
+  "updatedAt": "2026-06-13T14:15:19.392Z",
+  "sourceSkillId": "agent-browser",
+  "metadata": {
+    "identifier": "news-hub",
+    "artifactType": "text/html",
+    "inferred": false
+  }
+}

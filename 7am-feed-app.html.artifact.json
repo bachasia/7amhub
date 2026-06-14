@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "7AM Feed — News Flash Cards",
+  "entry": "7am-feed-app.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "primary": true,
+  "createdAt": "2026-06-13T13:55:58.384Z",
+  "updatedAt": "2026-06-13T13:55:58.393Z",
+  "sourceSkillId": "agent-browser",
+  "metadata": {
+    "identifier": "7am-feed-app",
+    "artifactType": "text/html",
+    "inferred": false
+  }
+}
