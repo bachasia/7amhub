@@ -37,7 +37,7 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
   const loadDetail = useCallback(async (id: string) => {
     setLoadingDetail(true);
     try {
-      const res = await fetch(`/api/articles/${id}`);
+      const res = await fetch(`/api/articles/${encodeURIComponent(id)}`);
       if (res.ok) setDetail(await res.json());
     } finally {
       setLoadingDetail(false);
