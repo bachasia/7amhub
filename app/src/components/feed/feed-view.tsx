@@ -10,7 +10,7 @@ import { ArticleCard } from "./article-card";
 import { ReaderModal } from "@/components/hub/reader-modal";
 import { FeedManagerDialog } from "@/components/hub/feed-manager-dialog";
 import type { ApiArticle } from "@/lib/serialize";
-import { RefreshCw, Sun, Moon, Bookmark, Rss, ChevronDown } from "lucide-react";
+import { RefreshCw, Sun, Moon, Bookmark, ChevronDown } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 
 type Chip = "digest" | "all" | string; // category key
@@ -23,13 +23,14 @@ function digestCards(digest: ReturnType<typeof useDigest>["data"]): ApiArticle[]
 
 export function FeedView() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { sources, addSource, deleteSource } = useSources();
+  const { sources, addSource, deleteSource, updateSource } = useSources();
   const { savedIds, savedArticles, toggle: toggleSave } = useSaved();
   const { readIds, markRead } = useRead();
   const { data: digest } = useDigest();
 
   const [chip, setChip] = useState<Chip>("digest");
   const [openArticle, setOpenArticle] = useState<ApiArticle | null>(null);
+  const [readerInitialTab, setReaderInitialTab] = useState<"ai" | "original">("ai");
   const [showSaved, setShowSaved] = useState(false);
   const [showManager, setShowManager] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,6 +74,13 @@ export function FeedView() {
   }, [chip]);
 
   const handleOpen = useCallback((article: ApiArticle) => {
+    setReaderInitialTab("ai");
+    setOpenArticle(article);
+    markRead(article.id);
+  }, [markRead]);
+
+  const handleReadOriginal = useCallback((article: ApiArticle) => {
+    setReaderInitialTab("original");
     setOpenArticle(article);
     markRead(article.id);
   }, [markRead]);
@@ -142,9 +150,6 @@ export function FeedView() {
             </span>
           </div>
           <span style={{ flex: 1 }} />
-          <button style={iconBtnStyle} aria-label="Quản lý nguồn" onClick={() => setShowManager(true)}>
-            <Rss size={22} />
-          </button>
           <button style={{ ...iconBtnStyle, position: "relative" }} aria-label="Đã lưu" onClick={() => setShowSaved(true)}>
             <Bookmark size={22} />
             {savedIds.size > 0 && (
@@ -221,6 +226,7 @@ export function FeedView() {
               saved={savedIds.has(article.id)}
               onOpen={handleOpen}
               onSave={handleSave}
+              onRead={handleReadOriginal}
             />
           </div>
         ))}
@@ -323,6 +329,7 @@ export function FeedView() {
           onSave={handleSave}
           onClose={() => setOpenArticle(null)}
           onMarkRead={markRead}
+          initialTab={readerInitialTab}
         />
       )}
 
@@ -332,6 +339,7 @@ export function FeedView() {
           sources={sources}
           onAdd={addSource}
           onDelete={deleteSource}
+          onUpdate={updateSource}
           onClose={() => setShowManager(false)}
         />
       )}
