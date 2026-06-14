@@ -37,12 +37,14 @@ export function SourceSidebar({ sources, activeSourceId, onSelect, onManage }: S
   return (
     <aside
       style={{
+        height: "100%",
         background: "var(--card)",
         borderRight: "1px solid var(--border)",
         padding: "14px 12px",
         overflowY: "auto",
         minHeight: 0,
         scrollbarWidth: "thin",
+        boxSizing: "border-box",
       }}
     >
       {/* All sources */}

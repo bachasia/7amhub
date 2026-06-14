@@ -19,12 +19,14 @@ export function TrendingPanel({ topics, featured, activeTopic, onTopicSelect, on
   return (
     <aside
       style={{
+        height: "100%",
         background: "var(--card)",
         borderLeft: "1px solid var(--border)",
         padding: "20px 18px",
         overflowY: "auto",
         minHeight: 0,
         scrollbarWidth: "thin",
+        boxSizing: "border-box",
       }}
     >
       {/* Featured article */}

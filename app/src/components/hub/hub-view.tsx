@@ -179,9 +179,9 @@ export function HubView() {
       </header>
 
       {/* Body: 3 cols */}
-      <div style={{ display: "grid", gridTemplateColumns: "264px minmax(0,1fr) 320px", minHeight: 0 }} className="hub-body">
+      <div style={{ display: "grid", gridTemplateColumns: "264px minmax(0,1fr) 320px", minHeight: 0, height: "100%" }} className="hub-body">
         {/* Left: sources */}
-        <div style={{ minHeight: 0 }}>
+        <div style={{ minHeight: 0, overflow: "hidden" }}>
           <SourceSidebar
             sources={sources}
             activeSourceId={activeSource}
@@ -313,7 +313,7 @@ export function HubView() {
         </section>
 
         {/* Right: trending */}
-        <div style={{ minHeight: 0 }}>
+        <div style={{ minHeight: 0, overflow: "hidden" }}>
           <TrendingPanel
             topics={topics}
             featured={digest?.picks[0] ?? null}
