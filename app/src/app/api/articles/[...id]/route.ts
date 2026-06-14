@@ -12,6 +12,14 @@ import { translateContent } from "@/lib/ai/translate-content";
 
 type Block = { t: "p" | "img"; v: string };
 
+// Heuristic: nếu >2% ký tự là diacritics tiếng Việt thì skip translation
+function isVietnamese(paragraphs: string[]): boolean {
+  const text = paragraphs.join(" ");
+  if (!text) return false;
+  const viMatches = text.match(/[àáâãèéêìíòóôõùúýăđơưạảấầẩẫậắặằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỷỹỵÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝĂĐƠƯ]/g);
+  return (viMatches?.length ?? 0) / text.length > 0.02;
+}
+
 // Article IDs are full URLs (e.g. "https://vnexpress.net/...") so they span multiple
 // path segments when used in a route. The catch-all [...id] captures them all and rejoins.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string[] }> }) {
@@ -47,16 +55,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!contentVi.length && aiReady()) {
     const paragraphs = blocks.filter((b) => b.t === "p").map((b) => b.v);
     if (paragraphs.length) {
-      try {
-        const translated = await translateContent(paragraphs);
-        // Ghép lại: giữ img block ở vị trí gốc, thay p block bằng bản dịch
-        let pIdx = 0;
-        contentVi = blocks.map((b) => b.t === "img" ? b : { t: "p" as const, v: translated[pIdx++] ?? b.v });
-        db.update(articles)
-          .set({ aiContentVi: JSON.stringify(contentVi) })
-          .where(eq(articles.id, articleId))
-          .run();
-      } catch { contentVi = []; }
+      if (isVietnamese(paragraphs)) {
+        // Nội dung đã tiếng Việt — không cần dịch
+        contentVi = blocks;
+      } else {
+        try {
+          const translated = await translateContent(paragraphs);
+          // Ghép lại: giữ img block ở vị trí gốc, thay p block bằng bản dịch
+          let pIdx = 0;
+          contentVi = blocks.map((b) => b.t === "img" ? b : { t: "p" as const, v: translated[pIdx++] ?? b.v });
+          db.update(articles)
+            .set({ aiContentVi: JSON.stringify(contentVi) })
+            .where(eq(articles.id, articleId))
+            .run();
+        } catch (e) {
+          console.error("[translate] failed for", articleId, e instanceof Error ? e.message : e);
+          contentVi = [];
+        }
+      }
     }
   }
 
