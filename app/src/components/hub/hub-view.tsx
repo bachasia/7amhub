@@ -7,6 +7,8 @@ import { useTrending } from "@/hooks/use-trending";
 import { useSaved } from "@/hooks/use-saved";
 import { useRead } from "@/hooks/use-read";
 import { useTheme } from "@/hooks/use-theme";
+import { useMarket } from "@/hooks/use-market";
+import { MarketTicker } from "./market-ticker";
 import { SourceSidebar } from "./source-sidebar";
 import { CategoryChips } from "./category-chips";
 import { TrendingPanel } from "./trending-panel";
@@ -22,6 +24,7 @@ type Tab = "digest" | "feed" | "saved";
 
 export function HubView() {
   const { theme, toggle: toggleTheme } = useTheme();
+  const market = useMarket();
   const { sources, reload: reloadSources, addSource, deleteSource } = useSources();
   const { topics } = useTrending(7);
   const { data: digest, loading: digestLoading } = useDigest();
@@ -162,6 +165,9 @@ export function HubView() {
         </div>
 
         <span style={{ flex: 1 }} />
+
+        {/* Market ticker */}
+        {market && <MarketTicker data={market} />}
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 2, background: "transparent", border: "1px solid var(--border)", borderRadius: 10, padding: 3 }}>
