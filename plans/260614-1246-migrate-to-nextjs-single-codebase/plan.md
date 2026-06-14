@@ -45,10 +45,10 @@ app/ (Next.js, 1 repo)
 ## Phases
 | # | Phase | Status |
 |---|---|---|
-| 01 | [Scaffold Next.js + Tailwind + shadcn + design tokens](phases/phase-01-scaffold-nextjs.md) | ⬜ |
-| 02 | [Port backend lib (db/ingest/ai/jobs) + migrations](phases/phase-02-port-backend-lib.md) | ⬜ |
-| 03 | [API route handlers (parity REST hiện tại)](phases/phase-03-api-route-handlers.md) | ⬜ |
-| 04 | [Worker process (cron ingest/AI/digest)](phases/phase-04-worker-process.md) | ⬜ |
+| 01 | [Scaffold Next.js + Tailwind + shadcn + design tokens](phases/phase-01-scaffold-nextjs.md) | ✅ |
+| 02 | [Port backend lib (db/ingest/ai/jobs) + migrations](phases/phase-02-port-backend-lib.md) | ✅ |
+| 03 | [API route handlers (parity REST hiện tại)](phases/phase-03-api-route-handlers.md) | ✅ |
+| 04 | [Worker process (cron ingest/AI/digest)](phases/phase-04-worker-process.md) | ✅ |
 | 05 | [Data layer: hooks + types dùng chung](phases/phase-05-data-layer-hooks.md) | ⬜ |
 | 06 | [Components dùng chung + HubView (desktop reader)](phases/phase-06-desktop-hubview.md) | ⬜ |
 | 07 | [FeedView (mobile vuốt) + responsive switch](phases/phase-07-mobile-feedview.md) | ⬜ |

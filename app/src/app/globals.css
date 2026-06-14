@@ -1,0 +1,140 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* 7AM Hub design tokens — light (parchment/terracotta palette) */
+:root {
+  --background: #f5f4ed;
+  --foreground: #141413;
+  --card: #faf9f5;
+  --card-foreground: #141413;
+  --popover: #faf9f5;
+  --popover-foreground: #141413;
+  --primary: #c96442;
+  --primary-foreground: #faf9f5;
+  --secondary: #e8e6dc;
+  --secondary-foreground: #141413;
+  --muted: #e8e6dc;
+  --muted-foreground: #5e5d59;
+  --accent: #e8e6dc;
+  --accent-foreground: #141413;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e8e6dc;
+  --input: #e8e6dc;
+  --ring: #c96442;
+  --chart-1: #c96442;
+  --chart-2: #3d7a5e;
+  --chart-3: #2a5ca0;
+  --chart-4: #7a3d7a;
+  --chart-5: #7a6b3d;
+  --radius: 0.5rem;
+  --sidebar: #faf9f5;
+  --sidebar-foreground: #141413;
+  --sidebar-primary: #c96442;
+  --sidebar-primary-foreground: #faf9f5;
+  --sidebar-accent: #e8e6dc;
+  --sidebar-accent-foreground: #141413;
+  --sidebar-border: #e8e6dc;
+  --sidebar-ring: #c96442;
+  /* Category colors */
+  --cat-tech: #2a5ca0;
+  --cat-science: #3d7a5e;
+  --cat-news: #c96442;
+  --cat-biz: #7a6b3d;
+  --cat-world: #7a3d7a;
+  /* Font display (Georgia serif for headings) */
+  --font-display: "Georgia", serif;
+}
+
+/* 7AM Hub dark mode — selector matches ThemeProvider data-theme attribute */
+[data-theme="dark"] {
+  --background: #1a1917;
+  --foreground: #f0efe8;
+  --card: #242320;
+  --card-foreground: #f0efe8;
+  --popover: #242320;
+  --popover-foreground: #f0efe8;
+  --primary: #e07050;
+  --primary-foreground: #1a1917;
+  --secondary: #2e2d29;
+  --secondary-foreground: #f0efe8;
+  --muted: #2e2d29;
+  --muted-foreground: #a09e97;
+  --accent: #2e2d29;
+  --accent-foreground: #f0efe8;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #2e2d29;
+  --input: #2e2d29;
+  --ring: #e07050;
+  --chart-1: #e07050;
+  --chart-2: #4d9a6e;
+  --chart-3: #3a7ccc;
+  --chart-4: #9a4d9a;
+  --chart-5: #9a8b4d;
+  --sidebar: #242320;
+  --sidebar-foreground: #f0efe8;
+  --sidebar-primary: #e07050;
+  --sidebar-primary-foreground: #1a1917;
+  --sidebar-accent: #2e2d29;
+  --sidebar-accent-foreground: #f0efe8;
+  --sidebar-border: #2e2d29;
+  --sidebar-ring: #e07050;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
