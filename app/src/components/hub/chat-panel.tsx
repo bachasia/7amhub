@@ -63,17 +63,19 @@ export function ChatPanel({ onOpenArticle }: ChatPanelProps) {
         if (done) break;
         fullText += decoder.decode(value, { stream: true });
 
-        // Show visible answer (strip trailer markers from live display)
+        // Show visible answer — strip both SOURCE_MAP trailer and SOURCES line
         const trailerIdx = fullText.indexOf(SOURCE_MAP_MARKER);
-        const visibleText = trailerIdx >= 0
-          ? fullText.slice(0, trailerIdx)
-          : stripSourcesLine(fullText);
+        const textBeforeTrailer = trailerIdx >= 0 ? fullText.slice(0, trailerIdx) : fullText;
+        const visibleText = stripSourcesLine(textBeforeTrailer);
         setState((s) => ({ ...s, answer: visibleText.trim() }));
       }
 
-      // Parse source map from trailer
+      // Strip SOURCES line and set final clean answer
+      const trailerEnd = fullText.indexOf(SOURCE_MAP_MARKER);
+      const answerPart = trailerEnd >= 0 ? fullText.slice(0, trailerEnd) : fullText;
+      const cleanAnswer = stripSourcesLine(answerPart).trim();
       const sources = parseSourceMap(fullText);
-      setState((s) => ({ ...s, streaming: false, sources }));
+      setState({ streaming: false, answer: cleanAnswer, sources, error: "" });
     } catch {
       setState({ streaming: false, answer: "", sources: [], error: "Không thể kết nối, thử lại sau." });
     }
