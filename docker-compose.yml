@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 7amhub:latest
+    ports:
+      - "${PORT:-8787}:8787"
+    env_file:
+      - ./server/.env
+    environment:
+      - PORT=8787
+    volumes:
+      - ./data:/app/data   # SQLite bền vững qua các lần restart
+    restart: unless-stopped
