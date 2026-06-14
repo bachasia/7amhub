@@ -13,7 +13,7 @@ import { todayLocal } from "../local-date";
 
 const digestSchema = z.object({
   intro: z.string().default(""),
-  picks: z.array(z.string()).max(8).default([]),
+  picks: z.array(z.string()).max(15).default([]),
   byCat: z.array(z.object({ cat: z.enum(CATEGORIES), ids: z.array(z.string()) })).default([]),
 });
 export interface DigestPayload {
@@ -25,7 +25,7 @@ export interface DigestPayload {
 const SYSTEM = `Bạn là tổng biên tập của bản tin "Đề xuất 7AM" tiếng Việt.
 Từ danh sách tin trong 24h qua, hãy:
 1. Viết "intro" 1-2 câu giới thiệu bức tranh tin tức nổi bật hôm nay.
-2. Chọn "picks": 5-8 tin QUAN TRỌNG/NÓNG nhất, đa dạng danh mục, sắp theo mức độ quan trọng giảm dần.
+2. Chọn "picks": 10-15 tin QUAN TRỌNG/NÓNG nhất, đa dạng danh mục, sắp theo mức độ quan trọng giảm dần.
 3. "byCat": nhóm các tin đáng chú ý theo danh mục.
 QUY TẮC: chỉ dùng "id" XUẤT HIỆN trong danh sách đầu vào, không bịa id mới, không bịa tin.`;
 
@@ -85,7 +85,7 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
     toolDescription: "Trả về bản tin tổng hợp: intro, picks, nhóm theo danh mục.",
     inputSchema: INPUT_SCHEMA,
     validator: digestSchema,
-    maxTokens: 1200,
+    maxTokens: 2000,
   });
 
   const payload: DigestPayload = {

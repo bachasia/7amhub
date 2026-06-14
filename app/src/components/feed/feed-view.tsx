@@ -143,11 +143,14 @@ export function FeedView() {
       {/* Topbar */}
       <div style={{ background: "var(--card)", borderBottom: "1px solid var(--border)", flexShrink: 0, paddingTop: "max(10px, env(safe-area-inset-top))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px 10px" }}>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 20, letterSpacing: "-.02em", display: "flex", alignItems: "baseline", gap: 7 }}>
-            7<span style={{ color: "#c96442" }}>AM</span> Hub
-            <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontFamily: "inherit", fontWeight: 500, marginLeft: 2 }}>
-              {new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "numeric", month: "numeric" })}
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7H</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span>7<span style={{ color: "var(--primary)" }}>AM</span> Hub</span>
+              <span style={{ fontSize: 10, color: "var(--muted-foreground)", fontWeight: 500, letterSpacing: ".04em", textTransform: "none" }}>
+                {new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "numeric", month: "numeric" })}
+              </span>
+            </div>
           </div>
           <span style={{ flex: 1 }} />
           <button style={{ ...iconBtnStyle, position: "relative" }} aria-label="Đã lưu" onClick={() => setShowSaved(true)}>

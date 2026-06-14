@@ -58,7 +58,7 @@ export function ArticleRow({ article, source, read, saved, onOpen, onSave }: Art
 
         <h2
           style={{
-            fontSize: 16,
+            fontSize: 18,
             lineHeight: 1.38,
             letterSpacing: "-.01em",
             fontFamily: "var(--font-display)",
@@ -103,8 +103,8 @@ export function ArticleRow({ article, source, read, saved, onOpen, onSave }: Art
           src={article.img}
           alt=""
           style={{
-            width: 100,
-            height: 72,
+            width: 148,
+            height: 104,
             borderRadius: 8,
             flexShrink: 0,
             alignSelf: "center",
@@ -117,8 +117,8 @@ export function ArticleRow({ article, source, read, saved, onOpen, onSave }: Art
       ) : (
         <div
           style={{
-            width: 100,
-            height: 72,
+            width: 148,
+            height: 104,
             borderRadius: 8,
             flexShrink: 0,
             alignSelf: "center",

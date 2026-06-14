@@ -135,7 +135,7 @@ export function HubView() {
 
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0 }}>
-          <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7A</span>
+          <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7H</span>
           <span>7<span style={{ color: "var(--primary)" }}>AM</span> Hub</span>
         </div>
 
@@ -323,7 +323,7 @@ export function HubView() {
         <div style={{ minHeight: 0, overflow: "hidden" }}>
           <TrendingPanel
             topics={topics}
-            featured={digest?.picks[0] ?? null}
+            featured={digest?.picks ?? []}
             activeTopic={activeTopic}
             onTopicSelect={(tag) => { setActiveTopic(tag); if (tag) setTab("feed"); }}
             onArticleOpen={handleOpen}
