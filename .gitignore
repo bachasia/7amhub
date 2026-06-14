@@ -1,0 +1,15 @@
+# dependencies & build
+node_modules/
+dist/
+
+# data & secrets
+data/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.local
+
+# scratch screenshots (không thuộc sản phẩm)
+*Screenshot*.jpg
+*Screenshot*.png
