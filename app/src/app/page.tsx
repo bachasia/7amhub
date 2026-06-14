@@ -1,12 +1,25 @@
+import { HubView } from "@/components/hub/hub-view";
+import { FeedView } from "@/components/feed/feed-view";
+
 export default function Home() {
   return (
-    <main className="flex flex-1 items-center justify-center">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
-          7AM Hub
-        </h1>
-        <p className="text-muted-foreground">Bản tin AI mỗi sáng — đang xây dựng…</p>
+    <>
+      {/* Desktop (≥1024px) */}
+      <div className="hub-only">
+        <HubView />
       </div>
-    </main>
+      {/* Mobile (<1024px) */}
+      <div className="feed-only">
+        <FeedView />
+      </div>
+      <style>{`
+        .hub-only  { display: block; }
+        .feed-only { display: none; }
+        @media (max-width: 1023px) {
+          .hub-only  { display: none; }
+          .feed-only { display: flex; justify-content: center; }
+        }
+      `}</style>
+    </>
   );
 }

@@ -1,26 +1,45 @@
-# 7AM Hub — build TypeScript backend + đóng gói cùng 2 frontend tĩnh (web/).
-# Layout trong container: /app/{dist,drizzle,web,node_modules,data}
+# 7AM Hub — Next.js 16 (standalone) + worker process
+# Build context: project root (7amhub/)
+# Usage: docker compose up -d --build
 
-FROM node:20-slim AS builder
+# ─── Stage 1: Install all dependencies ────────────────────────────────────────
+FROM node:20-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
-COPY server/package*.json ./
+COPY app/package*.json ./
 RUN npm ci
-COPY server/ ./
+
+# ─── Stage 2: Build Next.js app ───────────────────────────────────────────────
+FROM deps AS builder
+COPY app/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# ─── Stage 3: Production runtime ──────────────────────────────────────────────
 FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
-    WEB_DIR=./web \
-    DB_PATH=./data/7amhub.db
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
-COPY server/package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-COPY --from=builder /app/dist ./dist
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000 \
+    DB_PATH=/app/data/7amhub.db
+
+# Next.js standalone server + static assets
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# Drizzle migration files
 COPY --from=builder /app/drizzle ./drizzle
-COPY web ./web
+
+# Worker + TypeScript sources (run via tsx at startup)
+COPY --from=builder /app/worker.ts ./
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/package.json ./
+
+# Full node_modules: tsx (worker runner) + better-sqlite3 (native) + all deps
+COPY --from=deps /app/node_modules ./node_modules
+
 RUN mkdir -p data
-EXPOSE 8787
-# chạy migrations rồi khởi động server (ingest/AI/digest cron tự bật bên trong)
-CMD ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
+EXPOSE 3000

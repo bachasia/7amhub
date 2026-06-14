@@ -1,15 +1,43 @@
+# 7AM Hub — Next.js web server + cron worker (shared SQLite volume)
+# Setup: cp app/.env.local.example app/.env  →  fill ANTHROPIC_API_KEY
+# Start:  docker compose up -d --build
+# App:    http://host:8787
+
 services:
-  api:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
-    image: 7amhub:latest
     ports:
-      - "${PORT:-8787}:8787"
+      - "${PORT:-8787}:3000"
     env_file:
-      - ./server/.env
+      - ./app/.env
     environment:
-      - PORT=8787
+      - NODE_ENV=production
+      - DB_PATH=/app/data/7amhub.db
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
     volumes:
-      - ./data:/app/data   # SQLite bền vững qua các lần restart
+      - ./data:/app/data
+    # run migrations (idempotent) then start Next.js standalone server
+    command: >
+      sh -c "npx tsx src/lib/db/migrate.ts && node server.js"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ./app/.env
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/7amhub.db
+    volumes:
+      - ./data:/app/data
+    # run migrations then start cron worker (ingest / AI classify / digest)
+    command: >
+      sh -c "npx tsx src/lib/db/migrate.ts && npx tsx worker.ts"
+    depends_on:
+      - web
     restart: unless-stopped

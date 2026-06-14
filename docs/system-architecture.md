@@ -1,49 +1,69 @@
 # System Architecture — 7AM Hub
 
 ## Tổng quan
-Backend Node/TS phục vụ 2 frontend tĩnh và chạy 3 cron job nền. SQLite làm kho dữ liệu duy nhất.
+Single Next.js 16 codebase (App Router, TypeScript) phục vụ cả desktop + mobile responsive. Worker process riêng chạy cron jobs nặng (RSS ingest, AI classify, digest). Hai process dùng chung SQLite qua `lib/` (WAL mode).
 
 ```
-                      ┌────────────────────────── server (Hono) ──────────────────────────┐
+                      ┌─────────────────────── worker (node-cron) ────────────────────────┐
 nguồn RSS ─cron 15'─▶ │ ingest (rss-parser) → articles(pending)                            │
-                      │      │                                                             │
-                      │   cron 2'  ai-worker: extract toàn văn → Haiku phân loại+tag+tóm tắt│
-                      │      ▼                                                             │
-                      │ articles(ready) ──── REST /api ────▶  news-hub.html  /  feed-app   │
-                      │      │                                                             │
-                      │ cron 07:00  digest: Sonnet chọn tin nóng → digests(date)           │
+                      │       │                                                            │
+                      │  cron 2'  ai-worker: extractFullText → Haiku classify+tag+summary  │
+                      │       ▼                                                            │
+                      │  articles(ready)                                                   │
+                      │       │                                                            │
+                      │  cron 07:00  digest: Sonnet picks tin nóng → digests(date)        │
+                      └────────────────────────────────────────────────────────────────────┘
+                                          │ SQLite (WAL)
+                      ┌─────────────────── Next.js web (App Router) ───────────────────────┐
+                      │  API routes /api/{articles,sources,digest,trending,ops,saved,read}  │
+                      │  SSR: /article/[id] (OG metadata, share link)                      │
+                      │  UI: HubView (desktop 3-col) / FeedView (mobile scroll-snap)        │
+                      │  port :3000 → mapped :8787 via docker-compose                      │
                       └────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Luồng dữ liệu
-1. **Ingest** (`src/ingest/rss.ts`, cron `INGEST_CRON`): fetch nguồn active → parse → dedupe theo `id` (guid||link) → insert `articles` (ai_status=`pending`).
-2. **AI worker** (`src/jobs/ai-worker.ts`, cron `AI_WORKER_CRON`): lấy batch pending → `extractFullText` nếu thiếu → `analyzeArticle` (Haiku, 1 lần) → set category/tags/lead/points/hot_score, ai_status=`ready`. Lỗi: tăng `ai_tries`, tối đa 3 lần → `failed`.
-3. **Digest** (`src/ai/digest.ts`, cron `DIGEST_CRON` 07:00): bài `ready` trong 24h → Sonnet chọn picks + nhóm theo danh mục → lưu `digests` theo ngày, boost hot_score cho picks.
-4. **API** phục vụ frontend (chỉ trả bài `ready`).
+1. **Ingest** (`src/lib/ingest/rss.ts`, cron `INGEST_CRON`): fetch nguồn active → parse → dedupe theo `id` (guid||link) → insert `articles` (ai_status=`pending`).
+2. **AI worker** (`src/lib/jobs/ai-worker.ts`, cron `AI_WORKER_CRON`): lấy batch pending → `extractFullText` nếu thiếu → `analyzeArticle` (Haiku, 1 lần) → set category/tags/lead/points/hot_score, ai_status=`ready`. Lỗi: tăng `ai_tries`, tối đa 3 lần → `failed`.
+3. **Digest** (`src/lib/ai/digest.ts`, cron `DIGEST_CRON` 07:00): bài `ready` trong 24h → Sonnet chọn picks + nhóm theo danh mục → lưu `digests` theo ngày, boost hot_score cho picks.
+4. **API** (`app/api/*/route.ts`) phục vụ React components + SSR (chỉ trả bài `ready`).
+5. **SSR** (`app/article/[id]/page.tsx`): render server-side với OG metadata đầy đủ (title, image) cho share link.
 
-## Bảng dữ liệu (SQLite, `src/db/schema.ts`)
+## Bảng dữ liệu (SQLite, `src/lib/db/schema.ts`)
 - **sources**: `id, label, url(unique), active, created_at`
 - **articles**: `id, source_id, title, url, raw_summary, image, full_text, published_at, fetched_at, category, tags(JSON), ai_lead, ai_points(JSON), hot_score, ai_status(pending|ready|failed), ai_tries`
 - **digests**: `date(PK YYYY-MM-DD), payload(JSON {intro,picks[],byCat[]}), created_at`
+- **saved_articles**: `article_id(PK), saved_at` — server-side saved (đa thiết bị)
+- **read_articles**: `article_id(PK), read_at` — server-side read state
 
-## REST API (prefix `/api`)
+## REST API (`/api/*`)
 | Method | Path | Mô tả |
 |---|---|---|
-| GET | `/articles?cat&source&q&sort&offset&limit` | danh sách bài ready (lọc/tìm/phân trang) |
-| GET | `/articles/:id` | chi tiết + `paragraphs` (toàn văn, trích lazy) |
-| GET | `/sources` | danh sách nguồn + số bài |
-| POST | `/sources` `{label,url}` | thêm nguồn (xác minh RSS hợp lệ) |
-| PUT/DELETE | `/sources/:id` | sửa / xoá nguồn |
-| GET | `/digest/today?date` | bản tin "Đề xuất 7AM" (hydrate article) |
-| GET | `/trending?limit` | tag nổi bật theo tần suất |
-| GET | `/health` | trạng thái: tổng bài, pending, aiEnabled |
-| POST | `/refresh` | fetch RSS + xử lý AI ngay |
-| POST | `/digest/rebuild` | build lại digest hôm nay |
+| GET | `/api/articles?cat&source&q&sort&offset&limit` | danh sách bài ready |
+| GET | `/api/articles/:id` | chi tiết + paragraphs |
+| GET | `/api/sources` | danh sách nguồn + số bài |
+| POST | `/api/sources` | thêm nguồn (xác minh RSS hợp lệ) |
+| PUT/DELETE | `/api/sources/:id` | sửa / xoá nguồn |
+| GET | `/api/digest/today?date` | bản tin "Đề xuất 7AM" |
+| GET | `/api/trending?limit` | tag nổi bật |
+| GET | `/api/health` | trạng thái: tổng bài, pending, aiEnabled |
+| POST | `/api/refresh` | fetch RSS + xử lý AI ngay |
+| POST | `/api/digest/rebuild` | build lại digest hôm nay |
+| GET/POST/DELETE | `/api/saved`, `/api/read` | trạng thái saved/read server-side |
 
 ## Mô hình AI
-- **Haiku** (`MODEL_FAST`): phân loại + tag + tóm tắt mỗi bài. Forced tool-use → JSON validate bằng zod. Mỗi bài xử lý **1 lần** (tối ưu chi phí).
-- **Sonnet** (`MODEL_SMART`): tổng hợp digest hằng ngày. Lọc id ảo trước khi lưu.
-- Thiếu API key → toàn bộ phần AI tắt mềm (server vẫn chạy, tin ở pending).
+- **Haiku** (`MODEL_FAST`): phân loại + tag + tóm tắt mỗi bài. Forced tool-use → JSON validate bằng zod. Mỗi bài xử lý **1 lần** (tiết kiệm token).
+- **Sonnet** (`MODEL_SMART`): tổng hợp digest hằng ngày.
+- Thiếu API key → AI tắt mềm (server vẫn chạy, tin ở pending).
+
+## Deploy (Docker)
+```
+docker compose up -d --build
+```
+- **`web`** container: `npx tsx src/lib/db/migrate.ts && node server.js` (Next standalone, port 3000)
+- **`worker`** container: `npx tsx src/lib/db/migrate.ts && npx tsx worker.ts` (cron jobs)
+- Volume `./data:/app/data` dùng chung giữa 2 container
+- Migrations chạy idempotent khi mỗi container khởi động
 
 ## Cron & timezone
-`INGEST_CRON` (mặc định 15'), `AI_WORKER_CRON` (2'), `DIGEST_CRON` (07:00), theo `TZ` (Asia/Saigon). Cấu hình qua `.env`.
+`INGEST_CRON` (mặc định 15'), `AI_WORKER_CRON` (2'), `DIGEST_CRON` (07:00), theo `TZ` (Asia/Saigon).

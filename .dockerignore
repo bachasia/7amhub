@@ -5,9 +5,13 @@
 **/*.db-shm
 **/*.db-wal
 **/.env
+**/.env.local
+**/.env.*.local
 .git
 plans
 docs
+server
+web
 *.jpg
 *.png
 *.JPG

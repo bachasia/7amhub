@@ -1,6 +1,6 @@
 # Migrate 7AM Hub → Next.js + React (single codebase, responsive)
 
-**Created:** 2026-06-14 · **Status:** Planning
+**Created:** 2026-06-14 · **Status:** ✅ Complete
 
 ## Mục tiêu
 Thay 2 file HTML tĩnh bằng **một codebase Next.js (App Router, TS)** responsive: mobile = feed vuốt, desktop = reader 3 cột, **dùng chung component + data layer**. Giữ AI pipeline + RSS + cron đã chạy tốt, **port logic gần 1:1** (không viết lại).
@@ -49,12 +49,12 @@ app/ (Next.js, 1 repo)
 | 02 | [Port backend lib (db/ingest/ai/jobs) + migrations](phases/phase-02-port-backend-lib.md) | ✅ |
 | 03 | [API route handlers (parity REST hiện tại)](phases/phase-03-api-route-handlers.md) | ✅ |
 | 04 | [Worker process (cron ingest/AI/digest)](phases/phase-04-worker-process.md) | ✅ |
-| 05 | [Data layer: hooks + types dùng chung](phases/phase-05-data-layer-hooks.md) | ⬜ |
-| 06 | [Components dùng chung + HubView (desktop reader)](phases/phase-06-desktop-hubview.md) | ⬜ |
-| 07 | [FeedView (mobile vuốt) + responsive switch](phases/phase-07-mobile-feedview.md) | ⬜ |
-| 08 | [SSR chi tiết bài + SEO metadata + reader](phases/phase-08-ssr-article-seo.md) | ⬜ |
-| 09 | [Theme, saved/read, digest mặc định, parity rà soát](phases/phase-09-state-parity.md) | ⬜ |
-| 10 | [Docker (web+worker) + deploy + docs + gỡ bản cũ](phases/phase-10-deploy-cutover.md) | ⬜ |
+| 05 | [Data layer: hooks + types dùng chung](phases/phase-05-data-layer-hooks.md) | ✅ |
+| 06 | [Components dùng chung + HubView (desktop reader)](phases/phase-06-desktop-hubview.md) | ✅ |
+| 07 | [FeedView (mobile vuốt) + responsive switch](phases/phase-07-mobile-feedview.md) | ✅ |
+| 08 | [SSR chi tiết bài + SEO metadata + reader](phases/phase-08-ssr-article-seo.md) | ✅ |
+| 09 | [Theme, saved/read, digest mặc định, parity rà soát](phases/phase-09-state-parity.md) | ✅ |
+| 10 | [Docker (web+worker) + deploy + docs + gỡ bản cũ](phases/phase-10-deploy-cutover.md) | ✅ |
 
 ## Nguyên tắc cutover
 - Làm trong thư mục mới (vd `app/`), **không xoá `server/` + `web/`** cho tới khi parity đạt.

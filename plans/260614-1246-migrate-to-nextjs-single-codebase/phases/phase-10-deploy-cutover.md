@@ -1,6 +1,6 @@
 # Phase 10 — Docker (web+worker) + deploy + cutover
 
-**Priority:** P1 · **Status:** ⬜ · **Depends:** 08,09
+**Priority:** P1 · **Status:** ✅ · **Depends:** 08,09
 
 ## Mục tiêu
 Đóng gói Next.js (standalone) + worker, deploy VPS/Docker, gỡ bản cũ sau khi parity.
