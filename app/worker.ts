@@ -11,9 +11,11 @@ import { seedSourcesIfEmpty } from "./src/lib/db/seed-sources";
 import { runIngestOnce, startIngestCron } from "./src/lib/jobs/ingest-job";
 import { startAiWorkerCron, processPending } from "./src/lib/jobs/ai-worker";
 import { startDigestCron } from "./src/lib/jobs/digest-job";
+import { startHeartbeat } from "./src/lib/jobs/worker-heartbeat";
 
 async function bootstrap() {
   seedSourcesIfEmpty();
+  startHeartbeat();
   startIngestCron();
   startAiWorkerCron();
   startDigestCron();

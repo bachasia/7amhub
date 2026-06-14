@@ -52,6 +52,7 @@ async function processOne(a: typeof articles.$inferSelect): Promise<boolean> {
       .set({
         category: r.category,
         tags: JSON.stringify(r.tags),
+        aiTitle: r.viTitle || null,
         aiLead: r.lead,
         aiPoints: JSON.stringify(r.points),
         hotScore: hot,
