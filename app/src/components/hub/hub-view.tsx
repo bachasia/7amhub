@@ -12,6 +12,7 @@ import { MarketTicker } from "./market-ticker";
 import { SourceSidebar } from "./source-sidebar";
 import { CategoryChips } from "./category-chips";
 import { TrendingPanel } from "./trending-panel";
+import { ChatPanel } from "./chat-panel";
 import { DigestView } from "./digest-view";
 import { ArticleRow } from "./article-row";
 import { ReaderModal } from "./reader-modal";
@@ -21,6 +22,7 @@ import { Search, RefreshCw, Sun, Moon, Menu } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 
 type Tab = "digest" | "feed" | "saved";
+type RightTab = "trending" | "chat";
 
 export function HubView() {
   const { theme, toggle: toggleTheme } = useTheme();
@@ -32,6 +34,7 @@ export function HubView() {
   const { readIds, markRead } = useRead();
 
   const [tab, setTab] = useState<Tab>("digest");
+  const [rightTab, setRightTab] = useState<RightTab>("trending");
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
@@ -319,15 +322,36 @@ export function HubView() {
           </div>
         </section>
 
-        {/* Right: trending */}
-        <div style={{ minHeight: 0, overflow: "hidden" }}>
-          <TrendingPanel
-            topics={topics}
-            featured={digest?.picks ?? []}
-            activeTopic={activeTopic}
-            onTopicSelect={(tag) => { setActiveTopic(tag); if (tag) setTab("feed"); }}
-            onArticleOpen={handleOpen}
-          />
+        {/* Right: trending / chat */}
+        <div style={{ minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {/* Right panel toggle */}
+          <div style={{ display: "flex", gap: 2, padding: "10px 14px 0", background: "var(--card)", borderLeft: "1px solid var(--border)", flexShrink: 0 }}>
+            <button
+              onClick={() => setRightTab("trending")}
+              style={{ ...tabStyle(rightTab === "trending"), fontSize: 10, padding: "4px 10px" }}
+            >
+              Xu hướng
+            </button>
+            <button
+              onClick={() => setRightTab("chat")}
+              style={{ ...tabStyle(rightTab === "chat"), fontSize: 10, padding: "4px 10px" }}
+            >
+              Hỏi đáp
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+            {rightTab === "trending" ? (
+              <TrendingPanel
+                topics={topics}
+                featured={digest?.picks ?? []}
+                activeTopic={activeTopic}
+                onTopicSelect={(tag) => { setActiveTopic(tag); if (tag) setTab("feed"); }}
+                onArticleOpen={handleOpen}
+              />
+            ) : (
+              <ChatPanel onOpenArticle={handleOpen} />
+            )}
+          </div>
         </div>
       </div>
 
