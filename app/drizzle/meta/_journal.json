@@ -43,6 +43,20 @@
       "when": 1781433330447,
       "tag": "0005_acoustic_ben_urich",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1781500100000,
+      "tag": "0006_vi_title_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1781500200000,
+      "tag": "0007_worker_heartbeat",
+      "breakpoints": true
     }
   ]
 }
