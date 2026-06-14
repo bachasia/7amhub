@@ -129,13 +129,10 @@
 }
 
 /* Article card bullet points: hidden on mobile, flex column on desktop */
-.card-points {
-  display: none;
-  flex-direction: column;
-}
 @media (min-width: 768px) {
   .card-points {
-    display: flex;
+    display: flex !important;
+    flex-direction: column;
   }
 }
 
