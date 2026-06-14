@@ -1,25 +1,40 @@
 /**
  * Bản tin tổng hợp "Đề xuất 7AM": lấy bài ready trong 24h, để Claude Sonnet chọn tin nóng
- * + nhóm theo danh mục, lưu vào bảng digests theo ngày (theo TZ cấu hình).
+ * + nhóm theo danh mục + nhóm sự kiện, lưu vào bảng digests theo ngày (theo TZ cấu hình).
  */
 import { z } from "zod";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../db/client";
-import { articles, digests } from "../db/schema";
+import { articles, digests, sources } from "../db/schema";
 import { config } from "../config";
 import { aiReady, callJSON } from "./client";
 import { CATEGORIES, type Category } from "./classify";
 import { todayLocal } from "../local-date";
+
+export interface ClusterGroup {
+  event: string;
+  articleIds: string[];
+  sources: string[];
+}
 
 const digestSchema = z.object({
   intro: z.string().default(""),
   picks: z.array(z.string()).max(15).default([]),
   byCat: z.array(z.object({ cat: z.enum(CATEGORIES), ids: z.array(z.string()) })).default([]),
 });
+
+const clusteringSchema = z.object({
+  clusters: z.array(z.object({
+    event: z.string(),
+    articleIds: z.array(z.string()).min(2),
+  })).default([]),
+});
+
 export interface DigestPayload {
   intro: string;
   picks: string[];
   byCat: { cat: Category; ids: string[] }[];
+  clusters: ClusterGroup[];
 }
 
 const SYSTEM = `Bạn là tổng biên tập của bản tin "Đề xuất 7AM" tiếng Việt.
@@ -49,6 +64,29 @@ const INPUT_SCHEMA = {
   required: ["intro", "picks", "byCat"],
 };
 
+const CLUSTER_SYSTEM = `Bạn là biên tập viên. Từ danh sách tin, hãy nhóm các bài viết về CÙNG MỘT SỰ KIỆN
+(ít nhất 2 bài từ các nguồn khác nhau). Mỗi nhóm gồm: tên sự kiện ngắn gọn + danh sách id.
+Nếu không có nhóm nào, trả về clusters rỗng.
+QUY TẮC: chỉ dùng id XUẤT HIỆN trong danh sách đầu vào.`;
+
+const CLUSTER_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    clusters: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          event: { type: "string" },
+          articleIds: { type: "array", items: { type: "string" }, minItems: 2 },
+        },
+        required: ["event", "articleIds"],
+      },
+    },
+  },
+  required: ["clusters"],
+};
+
 const DAY_MS = 24 * 3.6e6;
 
 export async function buildDigest(date = todayLocal()): Promise<DigestPayload | null> {
@@ -63,8 +101,10 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
       tags: articles.tags,
       aiLead: articles.aiLead,
       hotScore: articles.hotScore,
+      sourceLabel: sources.label,
     })
     .from(articles)
+    .leftJoin(sources, eq(articles.sourceId, sources.id))
     .where(and(eq(articles.aiStatus, "ready"), gte(articles.fetchedAt, since)))
     .orderBy(sql`${articles.hotScore} desc`)
     .limit(60)
@@ -72,6 +112,7 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
 
   if (!recent.length) return null;
   const valid = new Set(recent.map((r) => r.id));
+  const sourceMap = new Map(recent.map((r) => [r.id, r.sourceLabel ?? ""]));
 
   const list = recent
     .map((r) => `- id:${r.id} | [${r.category}] ${r.title} | ${(r.aiLead || "").slice(0, 140)}`)
@@ -88,12 +129,35 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
     maxTokens: 2000,
   });
 
+  // Clustering call — graceful degradation on failure
+  let clusters: ClusterGroup[] = [];
+  try {
+    const clusterResult = await callJSON({
+      model: config.MODEL_SMART,
+      system: CLUSTER_SYSTEM,
+      user: `Danh sách tin:\n${list}`,
+      toolName: "nhom_su_kien",
+      toolDescription: "Nhóm các bài về cùng một sự kiện.",
+      inputSchema: CLUSTER_INPUT_SCHEMA,
+      validator: clusteringSchema,
+      maxTokens: 1000,
+    });
+    clusters = clusterResult.clusters
+      .filter((c) => c.articleIds.every((id) => valid.has(id)) && c.articleIds.length >= 2)
+      .map((c) => ({
+        event: c.event,
+        articleIds: c.articleIds,
+        sources: [...new Set(c.articleIds.map((id) => sourceMap.get(id) ?? ""))].filter(Boolean),
+      }));
+  } catch { /* digest proceeds without clusters */ }
+
   const payload: DigestPayload = {
     intro: parsed.intro ?? "",
     picks: (parsed.picks ?? []).filter((id) => valid.has(id)),
     byCat: (parsed.byCat ?? [])
       .map((g) => ({ ...g, ids: g.ids.filter((id) => valid.has(id)) }))
       .filter((g) => g.ids.length),
+    clusters,
   };
 
   if (payload.picks.length) {

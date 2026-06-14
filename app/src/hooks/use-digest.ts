@@ -7,12 +7,19 @@ export interface DigestGroup {
   items: ApiArticle[];
 }
 
+export interface DigestCluster {
+  event: string;
+  sources: string[];
+  articles: ApiArticle[];
+}
+
 export interface DigestData {
   date: string;
   hasDigest: boolean;
   intro: string;
   picks: ApiArticle[];
   byCat: DigestGroup[];
+  clusters: DigestCluster[];
 }
 
 interface DigestState {
