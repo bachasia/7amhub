@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useArticles } from "@/hooks/use-articles";
 import { useDigest } from "@/hooks/use-digest";
 import { useSources } from "@/hooks/use-sources";
@@ -11,8 +11,7 @@ import { useMarket } from "@/hooks/use-market";
 import { useWorkerStatus } from "@/hooks/use-worker-status";
 import { MarketTicker } from "./market-ticker";
 import { SourceSidebar } from "./source-sidebar";
-import { CategoryChips } from "./category-chips";
-import { catLabel } from "@/lib/categories";
+import { catLabel, catColor, CATEGORIES } from "@/lib/categories";
 import { TrendingPanel } from "./trending-panel";
 import { ChatPanel } from "./chat-panel";
 import { DigestView } from "./digest-view";
@@ -20,7 +19,7 @@ import { ArticleRow } from "./article-row";
 import { ReaderModal } from "./reader-modal";
 import { FeedManagerDialog } from "./feed-manager-dialog";
 import type { ApiArticle } from "@/lib/serialize";
-import { Search, RefreshCw, Sun, Moon, Menu } from "lucide-react";
+import { Search, RefreshCw, Sun, Moon, Menu, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 
 type Tab = "digest" | "feed" | "saved";
@@ -47,6 +46,28 @@ export function HubView() {
   const [openArticle, setOpenArticle] = useState<ApiArticle | null>(null);
   const [showManager, setShowManager] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Chip track scroll state for arrow nav
+  const chipTrackRef = useRef<HTMLDivElement>(null);
+  const [chipScroll, setChipScroll] = useState({ left: false, right: true });
+
+  const checkChipScroll = useCallback(() => {
+    const el = chipTrackRef.current;
+    if (!el) return;
+    setChipScroll({
+      left: el.scrollLeft > 4,
+      right: el.scrollLeft < el.scrollWidth - el.clientWidth - 4,
+    });
+  }, []);
+
+  const scrollChips = useCallback((dir: "left" | "right") => {
+    chipTrackRef.current?.scrollBy({ left: dir === "right" ? 180 : -180, behavior: "smooth" });
+  }, []);
+
+  // Re-check when tab switches to feed
+  useEffect(() => {
+    if (tab === "feed") setTimeout(checkChipScroll, 50);
+  }, [tab, checkChipScroll]);
 
   const q = activeTopic ? activeTopic : search;
   const { items, total, loading, hasMore, loadMore, reload: reloadArticles } = useArticles({
@@ -94,6 +115,26 @@ export function HubView() {
     background: active ? "var(--primary)" : "transparent",
     border: "none",
     cursor: "pointer",
+  });
+
+  const chipStyle = (active: boolean): React.CSSProperties => ({
+    padding: "5px 13px",
+    borderRadius: 9999,
+    fontSize: 11,
+    fontWeight: 600,
+    background: active
+      ? "color-mix(in oklab, var(--primary) 12%, var(--card))"
+      : "transparent",
+    border: active
+      ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)"
+      : "1px solid var(--border)",
+    color: active ? "var(--primary)" : "var(--muted-foreground)",
+    cursor: "pointer",
+    transition: ".15s",
+    textTransform: "uppercase" as const,
+    letterSpacing: ".05em",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   });
 
   const iconBtnStyle: React.CSSProperties = {
@@ -218,24 +259,47 @@ export function HubView() {
                 )}
               </div>
               {tab === "feed" && (
-                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {/* Sort row */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <button
-                      style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: sort === "latest" ? "color-mix(in oklab, var(--primary) 12%, var(--card))" : "transparent", border: sort === "latest" ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)" : "1px solid var(--border)", color: sort === "latest" ? "var(--primary)" : "var(--muted-foreground)", cursor: "pointer", textTransform: "uppercase", letterSpacing: ".05em" }}
-                      onClick={() => setSort("latest")}
-                    >
-                      Mới nhất
-                    </button>
-                    <button
-                      style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: sort === "hot" ? "color-mix(in oklab, var(--primary) 12%, var(--card))" : "transparent", border: sort === "hot" ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)" : "1px solid var(--border)", color: sort === "hot" ? "var(--primary)" : "var(--muted-foreground)", cursor: "pointer", textTransform: "uppercase", letterSpacing: ".05em" }}
-                      onClick={() => setSort("hot")}
-                    >
-                      Nổi bật
-                    </button>
+                <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                  {/* Sort — pinned, never scrolls */}
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button style={chipStyle(sort === "latest")} onClick={() => setSort("latest")}>Mới nhất</button>
+                    <button style={chipStyle(sort === "hot")} onClick={() => setSort("hot")}>Nổi bật</button>
                   </div>
-                  {/* Category chips row — horizontal scroll, no wrap */}
-                  <CategoryChips activeCat={activeCat} onSelect={setActiveCat} />
+                  {/* Divider */}
+                  <div style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
+                  {/* Category scrollable track */}
+                  <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                    {/* Left fade + arrow */}
+                    {chipScroll.left && (
+                      <>
+                        <div style={{ position: "absolute", left: 0, top: 0, bottom: 4, width: 40, background: "linear-gradient(to left, transparent, var(--background) 80%)", pointerEvents: "none", zIndex: 2 }} />
+                        <button onClick={() => scrollChips("left")} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-60%)", zIndex: 3, width: 24, height: 24, borderRadius: "50%", background: "var(--card)", border: "1px solid var(--border)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--muted-foreground)", boxShadow: "0 1px 4px rgba(0,0,0,.08)" }}>
+                          <ChevronLeft size={13} />
+                        </button>
+                      </>
+                    )}
+                    {/* Right fade + arrow */}
+                    {chipScroll.right && (
+                      <>
+                        <div style={{ position: "absolute", right: 0, top: 0, bottom: 4, width: 40, background: "linear-gradient(to right, transparent, var(--background) 80%)", pointerEvents: "none", zIndex: 2 }} />
+                        <button onClick={() => scrollChips("right")} style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-60%)", zIndex: 3, width: 24, height: 24, borderRadius: "50%", background: "var(--card)", border: "1px solid var(--border)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--muted-foreground)", boxShadow: "0 1px 4px rgba(0,0,0,.08)" }}>
+                          <ChevronRight size={13} />
+                        </button>
+                      </>
+                    )}
+                    <div
+                      ref={chipTrackRef}
+                      onScroll={checkChipScroll}
+                      style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", alignItems: "center", paddingBottom: 4, paddingLeft: chipScroll.left ? 32 : 0, paddingRight: chipScroll.right ? 44 : 0 }}
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <button key={cat} style={chipStyle(activeCat === cat)} onClick={() => setActiveCat(activeCat === cat ? null : cat)}>
+                          <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: catColor(cat), marginRight: 6, verticalAlign: "middle" }} />
+                          {catLabel(cat)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
