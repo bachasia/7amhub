@@ -94,8 +94,8 @@ jobs:
               exit 1
             fi
 
-            # Login to GHCR with GitHub token from env
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Login to GHCR with PAT (GITHUB_TOKEN lacks packages:read when job permissions are explicit)
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Pull latest images
             IMAGE_TAG=${{ needs.build.outputs.image_tag }} \
