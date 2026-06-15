@@ -193,17 +193,18 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
           transform: "translate(-50%, -50%)",
           width: "min(520px, 93vw)",
           maxHeight: "88vh",
-          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
           background: "var(--card)",
           border: "1px solid var(--border)",
           borderRadius: 16,
           boxShadow: "0 20px 52px rgba(0,0,0,.15)",
-          scrollbarWidth: "thin",
         }}
       >
-        <div style={{ padding: "22px 24px 26px" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 18 }}>
+        {/* Header */}
+        <div style={{ padding: "22px 24px 14px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, fontFamily: "var(--font-display)", margin: 0 }}>
               Quản lý nguồn RSS
             </h2>
@@ -217,9 +218,11 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
               <X size={18} />
             </button>
           </div>
+        </div>
 
-          {/* Source list */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 22, maxHeight: "42vh", overflowY: "auto", paddingRight: 4, scrollbarWidth: "thin" }}>
+        {/* Source list — only this scrolls */}
+        <div style={{ flex: 1, minHeight: 80, overflowY: "auto", padding: "0 24px", scrollbarWidth: "thin" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, paddingBottom: 4 }}>
             {sources.length === 0 && (
               <p style={{ color: "var(--muted-foreground)", fontSize: 13.5, padding: "14px 2px" }}>Chưa có nguồn nào.</p>
             )}
@@ -310,9 +313,10 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
               </div>
             ))}
           </div>
+        </div>
 
-          {/* Add form */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
+        {/* Add form — always visible, never scrolls */}
+        <div style={{ flexShrink: 0, borderTop: "1px solid var(--border)", padding: "18px 24px 26px" }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Thêm nguồn mới</div>
             <p style={{ fontSize: 12.5, color: "var(--muted-foreground)", lineHeight: 1.5, marginBottom: 12 }}>
               Nhập tên hiển thị và URL feed RSS. Hệ thống sẽ tự động kiểm tra feed trước khi lưu.
@@ -407,7 +411,6 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                 </button>
               </div>
             </form>
-          </div>
         </div>
       </section>
     </>
