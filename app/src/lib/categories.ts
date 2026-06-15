@@ -3,7 +3,7 @@ export const CAT_LABELS: Record<string, string> = {
   tech: "Công nghệ",
   ai: "AI",
   science: "Khoa học",
-  news: "Thời sự",
+  dev: "Lập trình",
   biz: "Kinh doanh",
 };
 
@@ -12,11 +12,11 @@ export const CAT_COLORS: Record<string, string> = {
   tech: "var(--cat-tech)",
   ai: "var(--cat-ai)",
   science: "var(--cat-science)",
-  news: "var(--cat-news)",
+  dev: "var(--cat-dev)",
   biz: "var(--cat-biz)",
 };
 
-export const CATEGORIES = ["world", "tech", "ai", "science", "news", "biz"] as const;
+export const CATEGORIES = ["world", "tech", "ai", "science", "dev", "biz"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export function catLabel(cat: string | null | undefined): string {

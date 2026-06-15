@@ -105,10 +105,11 @@ export function FeedView() {
   const chips: { key: Chip; label: string }[] = [
     { key: "digest", label: "🔥 7AM" },
     { key: "all", label: "Tất cả" },
+    { key: "ai", label: "AI" },
+    { key: "dev", label: "Lập trình" },
     { key: "tech", label: "Công nghệ" },
     { key: "science", label: "Khoa học" },
     { key: "world", label: "Thế giới" },
-    { key: "news", label: "Thời sự" },
     { key: "biz", label: "Kinh doanh" },
   ];
 

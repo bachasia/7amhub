@@ -3,7 +3,7 @@ import { z } from "zod";
 import { config } from "../config";
 import { callJSON } from "./client";
 
-export const CATEGORIES = ["world", "tech", "ai", "science", "news", "biz"] as const;
+export const CATEGORIES = ["world", "tech", "ai", "science", "dev", "biz"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 const resultSchema = z.object({
@@ -15,11 +15,28 @@ const resultSchema = z.object({
 });
 export type AnalyzeResult = z.infer<typeof resultSchema>;
 
-const SYSTEM = `Bạn là biên tập viên tin tức tiếng Việt. Với mỗi bài, hãy:
-1. Phân loại vào ĐÚNG MỘT danh mục: world (thế giới), tech (công nghệ phần cứng/phần mềm/sản phẩm), ai (trí tuệ nhân tạo/machine learning/LLM/chatbot), science (khoa học), news (thời sự trong nước), biz (kinh doanh/kinh tế). Ưu tiên "ai" cho mọi bài về AI/ML/LLM.
-2. Gắn 2-4 tag ngắn gọn (thương hiệu, nhân vật, chủ đề chính) — viết hoa hợp lý, không trùng lặp.
-3. Dịch tiêu đề sang tiếng Việt tự nhiên, sát nghĩa (trường "viTitle").
-4. Viết tóm tắt khách quan bằng tiếng Việt: 1 câu "lead" mở đầu cô đọng + tối đa 3 ý chính dạng gạch đầu dòng.
+const SYSTEM = `Bạn là biên tập viên tin tức công nghệ. Với mỗi bài, hãy:
+
+1. Phân loại vào ĐÚNG MỘT danh mục theo thứ tự ưu tiên sau:
+   - "ai": bài về mô hình AI, LLM, machine learning, AI research, AI tools (ChatGPT, Gemini, Claude, Copilot...), AI startup — ƯU TIÊN CAO NHẤT, ngay cả khi bài cũng liên quan đến dev/tech.
+   - "dev": bài về lập trình, ngôn ngữ lập trình (Python, Rust, Go, JS...), framework, thư viện, open source, DevOps, CI/CD, tooling, API design, system design, GitHub, developer workflow, engineering blog, web/backend/frontend development — KHÔNG phải sản phẩm tiêu dùng.
+   - "tech": bài về sản phẩm phần cứng/phần mềm thương mại (iPhone, Android, chip, console, browser, OS), cybersecurity, cloud platform (AWS, GCP, Azure) ở góc độ dịch vụ, IoT.
+   - "science": bài về nghiên cứu khoa học, khám phá vũ trụ/thiên văn, y học, sinh học, vật lý, môi trường, biến đổi khí hậu.
+   - "biz": bài về kinh doanh, tài chính, startup funding, IPO, M&A, thị trường chứng khoán, kinh tế vĩ mô, chiến lược doanh nghiệp.
+   - "world": bài về chính trị quốc tế, địa chính trị, xung đột, ngoại giao, văn hóa xã hội toàn cầu, pháp lý quốc tế.
+
+   Quy tắc phân biệt quan trọng:
+   • Bài về GitHub Actions, Docker, Kubernetes, Terraform → "dev" (không phải "tech")
+   • Bài về nghiên cứu AI/ML mới → "ai" (không phải "science")
+   • Bài về doanh thu/định giá của công ty AI → "biz" (không phải "ai")
+   • Bài về Apple ra iPhone mới → "tech" (không phải "biz")
+
+2. Gắn 2-4 tag ngắn gọn (thương hiệu, công nghệ, nhân vật, chủ đề chính) — viết hoa hợp lý, không trùng lặp, không lặp lại từ trong tiêu đề.
+
+3. Dịch tiêu đề sang tiếng Việt tự nhiên, sát nghĩa (trường "viTitle") — giữ tên riêng/thương hiệu nguyên gốc.
+
+4. Viết tóm tắt khách quan bằng tiếng Việt: 1 câu "lead" cô đọng nêu điểm cốt lõi + tối đa 3 ý chính ngắn gọn dạng gạch đầu dòng, mỗi ý 1 câu.
+
 Tuyệt đối KHÔNG bịa thông tin ngoài bài. Chỉ tóm tắt nội dung được cung cấp.
 QUAN TRỌNG: Toàn bộ "viTitle", "lead" và "points" phải viết bằng tiếng Việt.`;
 

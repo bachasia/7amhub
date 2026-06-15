@@ -7,14 +7,14 @@ import { ImageIcon } from "lucide-react";
 const CAT_BG: Record<string, string> = {
   tech: "#c96442",
   science: "#2d7a5a",
-  news: "#b53333",
+  dev: "#3b4da8",
   biz: "#a05c20",
   world: "#6b4f3a",
 };
 const CAT_PILL: Record<string, string> = {
   tech: "#d97757",
   science: "#4a9a7a",
-  news: "#c94444",
+  dev: "#5b6fd4",
   biz: "#c47a3a",
   world: "#8b6b55",
 };
