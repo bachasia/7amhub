@@ -27,7 +27,7 @@ export function CategoryChips({ activeCat, onSelect }: CategoryChipsProps) {
   });
 
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+    <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", alignItems: "center", paddingBottom: 2 }}>
       {CATEGORIES.map((cat) => (
         <button
           key={cat}

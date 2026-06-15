@@ -218,20 +218,23 @@ export function HubView() {
                 )}
               </div>
               {tab === "feed" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                  <button
-                    style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: sort === "latest" ? "color-mix(in oklab, var(--primary) 12%, var(--card))" : "transparent", border: sort === "latest" ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)" : "1px solid var(--border)", color: sort === "latest" ? "var(--primary)" : "var(--muted-foreground)", cursor: "pointer", textTransform: "uppercase", letterSpacing: ".05em" }}
-                    onClick={() => setSort("latest")}
-                  >
-                    Mới nhất
-                  </button>
-                  <button
-                    style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: sort === "hot" ? "color-mix(in oklab, var(--primary) 12%, var(--card))" : "transparent", border: sort === "hot" ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)" : "1px solid var(--border)", color: sort === "hot" ? "var(--primary)" : "var(--muted-foreground)", cursor: "pointer", textTransform: "uppercase", letterSpacing: ".05em" }}
-                    onClick={() => setSort("hot")}
-                  >
-                    Nổi bật
-                  </button>
-                  <span style={{ width: 1, height: 20, background: "var(--border)", margin: "0 3px" }} />
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {/* Sort row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button
+                      style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: sort === "latest" ? "color-mix(in oklab, var(--primary) 12%, var(--card))" : "transparent", border: sort === "latest" ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)" : "1px solid var(--border)", color: sort === "latest" ? "var(--primary)" : "var(--muted-foreground)", cursor: "pointer", textTransform: "uppercase", letterSpacing: ".05em" }}
+                      onClick={() => setSort("latest")}
+                    >
+                      Mới nhất
+                    </button>
+                    <button
+                      style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: sort === "hot" ? "color-mix(in oklab, var(--primary) 12%, var(--card))" : "transparent", border: sort === "hot" ? "1px solid color-mix(in oklab, var(--primary) 35%, transparent)" : "1px solid var(--border)", color: sort === "hot" ? "var(--primary)" : "var(--muted-foreground)", cursor: "pointer", textTransform: "uppercase", letterSpacing: ".05em" }}
+                      onClick={() => setSort("hot")}
+                    >
+                      Nổi bật
+                    </button>
+                  </div>
+                  {/* Category chips row — horizontal scroll, no wrap */}
                   <CategoryChips activeCat={activeCat} onSelect={setActiveCat} />
                 </div>
               )}
