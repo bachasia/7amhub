@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { ApiArticle } from "@/lib/serialize";
 import { SourceFavicon } from "./source-favicon";
 import type { ApiSource } from "@/hooks/use-sources";
@@ -25,10 +25,78 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
   const [tab, setTab] = useState<"ai" | "original">(initialTab);
   const [detail, setDetail] = useState<ArticleDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [swipeDx, setSwipeDx] = useState(0);
+
+  const modalRef = useRef<HTMLElement>(null);
+  const swipeDxRef = useRef(0);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   const open = article !== null;
 
-  // Reset tab and clear cached detail when article changes
+  // Detect mobile breakpoint
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Swipe-left-to-close (mobile only, non-passive touchmove to allow preventDefault)
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const el = modalRef.current;
+    if (!el) return;
+
+    let startX = 0;
+    let startY = 0;
+    let isHoriz = false;
+
+    const onStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      isHoriz = false;
+      swipeDxRef.current = 0;
+      setSwipeDx(0);
+    };
+
+    const onMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      // Determine swipe axis on first significant movement
+      if (!isHoriz && (Math.abs(dx) + Math.abs(dy)) > 8) {
+        isHoriz = Math.abs(dx) > Math.abs(dy) && dx < 0;
+      }
+      if (isHoriz) {
+        e.preventDefault(); // block page scroll during horizontal swipe
+        const clamped = Math.min(0, dx);
+        swipeDxRef.current = clamped;
+        setSwipeDx(clamped);
+      }
+    };
+
+    const onEnd = () => {
+      if (swipeDxRef.current < -80) {
+        onCloseRef.current();
+      } else {
+        swipeDxRef.current = 0;
+        setSwipeDx(0);
+      }
+      isHoriz = false;
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [isMobile, open]);
+
+  // Reset tab and cached detail when article changes
   useEffect(() => {
     if (!article) { setDetail(null); return; }
     setTab(initialTab);
@@ -47,9 +115,7 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
   }, []);
 
   useEffect(() => {
-    if (tab === "original" && article && !detail) {
-      loadDetail(article.id);
-    }
+    if (tab === "original" && article && !detail) loadDetail(article.id);
   }, [tab, article, detail, loadDetail]);
 
   // Close on Escape
@@ -80,76 +146,113 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
     cursor: "pointer",
   });
 
+  const modalStyle: React.CSSProperties = isMobile
+    ? {
+        position: "fixed",
+        zIndex: 80,
+        left: 0,
+        top: 0,
+        width: "100vw",
+        height: "100dvh",
+        overflowY: "auto",
+        background: "var(--card)",
+        borderRadius: 0,
+        // Follow finger while swiping; animate back on release
+        transform: `translateX(${swipeDx}px)`,
+        opacity: swipeDx === 0 ? 1 : Math.max(0.5, 1 + swipeDx / 250),
+        transition: swipeDx === 0 ? "transform .25s ease, opacity .25s ease" : "none",
+        scrollbarWidth: "thin",
+      }
+    : {
+        position: "fixed",
+        zIndex: 80,
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "min(680px, 93vw)",
+        maxHeight: "88vh",
+        overflowY: "auto",
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        borderRadius: 16,
+        boxShadow: "0 20px 52px rgba(0,0,0,.15)",
+        scrollbarWidth: "thin",
+      };
+
   return (
     <>
-      {/* Scrim */}
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(15,23,42,.35)",
-          zIndex: 70,
-        }}
-      />
+      {/* Scrim — desktop only (mobile is full-screen, no overlay needed) */}
+      {!isMobile && (
+        <div
+          onClick={onClose}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.35)", zIndex: 70 }}
+        />
+      )}
 
       {/* Modal */}
-      <section
-        style={{
-          position: "fixed",
-          zIndex: 80,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "min(680px, 93vw)",
-          maxHeight: "88vh",
-          overflowY: "auto",
-          background: "var(--card)",
-          border: "1px solid var(--border)",
-          borderRadius: 16,
-          boxShadow: "0 20px 52px rgba(0,0,0,.15)",
-          scrollbarWidth: "thin",
-        }}
-      >
-        <div style={{ padding: "22px 26px 26px" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 16 }}>
-            <SourceFavicon siteUrl={source?.siteUrl ?? null} label={article.source} size={18} />
-            <span style={{ fontWeight: 600, fontSize: 13.5 }}>{article.source}</span>
-            <span style={{ color: "var(--muted-foreground)" }}>·</span>
-            <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{article.time}</span>
-            <button
-              onClick={onClose}
-              aria-label="Đóng"
-              style={{
-                marginLeft: "auto",
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                display: "grid",
-                placeItems: "center",
-                color: "var(--muted-foreground)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--muted)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-            >
-              <X size={18} />
-            </button>
-          </div>
+      <section ref={modalRef} style={modalStyle}>
+
+        {/* Header — sticky on mobile so it stays visible while scrolling */}
+        <div
+          style={
+            isMobile
+              ? {
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 1,
+                  background: "var(--card)",
+                  borderBottom: "1px solid var(--border)",
+                  padding: "12px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                }
+              : {
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  padding: "22px 26px 0",
+                }
+          }
+        >
+          <SourceFavicon siteUrl={source?.siteUrl ?? null} label={article.source} size={18} />
+          <span style={{ fontWeight: 600, fontSize: 13.5 }}>{article.source}</span>
+          <span style={{ color: "var(--muted-foreground)" }}>·</span>
+          <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{article.time}</span>
+          <button
+            onClick={onClose}
+            aria-label="Đóng"
+            style={{
+              marginLeft: "auto",
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              display: "grid",
+              placeItems: "center",
+              color: "var(--muted-foreground)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--muted)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: isMobile ? "18px 20px 40px" : "16px 26px 26px" }}>
 
           {/* Title */}
           <h2
             style={{
-              fontSize: 24,
+              fontSize: isMobile ? 22 : 24,
               fontWeight: 500,
               lineHeight: 1.2,
               letterSpacing: "-.01em",
               fontFamily: "var(--font-display)",
-              marginBottom: 16,
               margin: "0 0 16px",
             }}
           >
@@ -289,7 +392,6 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
         </div>
       </section>
 
-      {/* Spin animation */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
