@@ -7,10 +7,12 @@ import { useSaved } from "@/hooks/use-saved";
 import { useRead } from "@/hooks/use-read";
 import { useTheme } from "@/hooks/use-theme";
 import { ArticleCard } from "./article-card";
+import { RankedList } from "@/components/hub/ranked-list";
+import { SourceSidebar } from "@/components/hub/source-sidebar";
 import { ReaderModal } from "@/components/hub/reader-modal";
 import { FeedManagerDialog } from "@/components/hub/feed-manager-dialog";
 import type { ApiArticle } from "@/lib/serialize";
-import { RefreshCw, Sun, Moon, Bookmark, ChevronDown } from "lucide-react";
+import { RefreshCw, Sun, Moon, Bookmark, ChevronDown, Menu } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 
 type Chip = "digest" | "all" | string; // category key
@@ -23,7 +25,7 @@ function digestCards(digest: ReturnType<typeof useDigest>["data"]): ApiArticle[]
 
 export function FeedView() {
   const { theme, toggle: toggleTheme } = useTheme();
-  const { sources, addSource, deleteSource, updateSource } = useSources();
+  const { sources, addSource, deleteSource, updateSource, reload: reloadSources } = useSources();
   const { savedIds, savedArticles, toggle: toggleSave } = useSaved();
   const { readIds, markRead } = useRead();
   const { data: digest } = useDigest();
@@ -33,6 +35,7 @@ export function FeedView() {
   const [readerInitialTab, setReaderInitialTab] = useState<"ai" | "original">("ai");
   const [showSaved, setShowSaved] = useState(false);
   const [showManager, setShowManager] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [hasScrolled, setHasScrolled] = useState(false);
@@ -46,11 +49,17 @@ export function FeedView() {
   const feedRef = useRef<HTMLDivElement>(null);
 
   const isDigest = chip === "digest";
-  const catFilter = chip !== "digest" && chip !== "all" ? chip : null;
+  // Chip chọn nguồn có dạng "src:<id>" (từ ngăn kéo nguồn hoặc chip trending).
+  const selectedSourceId = chip.startsWith("src:") ? chip.slice(4) : null;
+  const selectedSource = selectedSourceId ? sources.find((s) => s.id === selectedSourceId) : null;
+  // Nguồn trending → bảng xếp hạng theo `rank`; nguồn thường → feed cards lọc theo nguồn.
+  const isRankedView = selectedSource?.type === "trending";
+  const catFilter = !isDigest && !selectedSourceId && chip !== "all" ? chip : null;
 
   const { items: feedItems, hasMore, loadMore } = useArticles({
+    source: selectedSourceId,
     cat: catFilter,
-    sort: "latest",
+    sort: isRankedView ? "rank" : "latest",
     enabled: !isDigest,
   });
 
@@ -108,9 +117,36 @@ export function FeedView() {
     }
   }, []);
 
+  // Chọn nguồn từ ngăn kéo → đổi chip sang "src:<id>" (null = tất cả nguồn), đóng ngăn kéo.
+  const selectSource = useCallback((id: string | null) => {
+    setChip(id ? `src:${id}` : "all");
+    setDrawerOpen(false);
+  }, []);
+
+  // Vuốt từ mép trái → mở ngăn kéo nguồn; vuốt trái khi đang mở → đóng.
+  const touchRef = useRef<{ x: number; y: number; edge: boolean } | null>(null);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY, edge: t.clientX < 28 };
+  }, []);
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    const s = touchRef.current;
+    if (!s) return;
+    const t = e.touches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) < Math.abs(dy)) return; // cử chỉ dọc → bỏ qua
+    if (!drawerOpen && s.edge && dx > 55) { setDrawerOpen(true); touchRef.current = null; }
+    else if (drawerOpen && dx < -55) { setDrawerOpen(false); touchRef.current = null; }
+  }, [drawerOpen]);
+  const onTouchEnd = useCallback(() => { touchRef.current = null; }, []);
+
   const chips: { key: Chip; label: string }[] = [
     { key: "digest", label: "🔥 7AM" },
     { key: "all", label: "Tất cả" },
+    ...sources
+      .filter((s) => s.type === "trending")
+      .map((s) => ({ key: `src:${s.id}`, label: `📈 ${s.label}` })),
     { key: "ai", label: "AI" },
     { key: "dev", label: "Lập trình" },
     { key: "tech", label: "Công nghệ" },
@@ -137,6 +173,9 @@ export function FeedView() {
 
   return (
     <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
       style={{
         width: "100%",
         maxWidth: 480,
@@ -152,6 +191,9 @@ export function FeedView() {
       {/* Topbar */}
       <div style={{ background: "var(--card)", borderBottom: "1px solid var(--border)", flexShrink: 0, paddingTop: "max(10px, env(safe-area-inset-top))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px 10px" }}>
+          <button style={{ ...iconBtnStyle, width: 36, height: 36, marginLeft: -6 }} aria-label="Nguồn tin" onClick={() => setDrawerOpen(true)}>
+            <Menu size={22} />
+          </button>
           <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0 }}>
             <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7H</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -215,7 +257,7 @@ export function FeedView() {
         style={{
           flex: 1,
           overflowY: "auto",
-          scrollSnapType: "y mandatory",
+          scrollSnapType: isRankedView ? "none" : "y mandatory",
           scrollBehavior: "smooth",
           scrollbarWidth: "none",
           position: "relative",
@@ -225,26 +267,35 @@ export function FeedView() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted-foreground)", gap: 12, padding: 24 }}>
             {isDigest ? (
               <p style={{ textAlign: "center", fontSize: 15 }}>Bản tin 7AM chưa có hôm nay. Hẹn gặp lại lúc 07:00 sáng!</p>
+            ) : isRankedView ? (
+              <p style={{ textAlign: "center", fontSize: 15 }}>Chưa có dữ liệu trending. Kéo làm mới.</p>
             ) : (
               <p style={{ textAlign: "center", fontSize: 15 }}>Không có bài nào.</p>
             )}
           </div>
         )}
 
-        {cards.map((article, i) => (
-          <div key={article.id} style={{ height: "100%", scrollSnapAlign: "start", scrollSnapStop: "always" }}>
-            <ArticleCard
-              article={article}
-              saved={savedIds.has(article.id)}
-              onOpen={handleOpen}
-              onSave={handleSave}
-              onRead={handleReadOriginal}
-            />
+        {/* Trending: bảng xếp hạng cuộn thường (không snap) */}
+        {isRankedView ? (
+          <div style={{ padding: "8px 14px 24px" }}>
+            <RankedList items={cards} savedIds={savedIds} onOpen={handleOpen} onSave={handleSave} />
           </div>
-        ))}
+        ) : (
+          cards.map((article) => (
+            <div key={article.id} style={{ height: "100%", scrollSnapAlign: "start", scrollSnapStop: "always" }}>
+              <ArticleCard
+                article={article}
+                saved={savedIds.has(article.id)}
+                onOpen={handleOpen}
+                onSave={handleSave}
+                onRead={handleReadOriginal}
+              />
+            </div>
+          ))
+        )}
 
         {/* Swipe hint */}
-        {!hasScrolled && cards.length > 1 && (
+        {!isRankedView && !hasScrolled && cards.length > 1 && (
           <div style={{
             position: "absolute", left: "50%", bottom: 24, transform: "translateX(-50%)",
             zIndex: 15, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
@@ -258,7 +309,7 @@ export function FeedView() {
       </div>
 
       {/* Rail dots */}
-      {cards.length > 1 && (
+      {!isRankedView && cards.length > 1 && (
         <div style={{
           position: "absolute",
           right: 7,
@@ -331,6 +382,38 @@ export function FeedView() {
           </div>
         </>
       )}
+
+      {/* Source drawer (vuốt từ mép trái hoặc bấm nút Nguồn) */}
+      <div
+        onClick={() => setDrawerOpen(false)}
+        style={{
+          position: "absolute", inset: 0, zIndex: 60,
+          background: "rgba(7,8,9,.5)",
+          opacity: drawerOpen ? 1 : 0,
+          pointerEvents: drawerOpen ? "auto" : "none",
+          transition: "opacity .2s",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute", left: 0, top: 0, bottom: 0, zIndex: 65,
+          width: "82%", maxWidth: 320,
+          background: "var(--card)",
+          boxShadow: drawerOpen ? "2px 0 24px rgba(0,0,0,.18)" : "none",
+          transform: drawerOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform .24s cubic-bezier(.4,0,.2,1)",
+          display: "flex", flexDirection: "column",
+          paddingTop: "env(safe-area-inset-top)",
+        }}
+      >
+        <SourceSidebar
+          sources={sources}
+          activeSourceId={selectedSourceId}
+          onSelect={selectSource}
+          onManage={() => { setDrawerOpen(false); setShowManager(true); }}
+          onRefreshed={reloadSources}
+        />
+      </div>
 
       {/* Reader modal */}
       {openArticle && (
