@@ -64,6 +64,13 @@
       "when": 1781519875367,
       "tag": "0008_modern_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1781526952388,
+      "tag": "0009_pale_mandrill",
+      "breakpoints": true
     }
   ]
 }

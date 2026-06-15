@@ -10,6 +10,7 @@ import { sources, articles } from "@/lib/db/schema";
 const bodySchema = z.object({
   label: z.string().trim().min(1).optional(),
   url: z.string().trim().min(1).optional(),
+  group: z.string().trim().nullish(),
 });
 
 function normalizeUrl(u: string): string {
@@ -26,6 +27,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const next = {
     label: parsed.data.label ?? s.label,
     url: parsed.data.url ? normalizeUrl(parsed.data.url) : s.url,
+    // group !== undefined → user gửi field (chuỗi rỗng = bỏ folder → null); undefined → giữ nguyên.
+    group: parsed.data.group !== undefined ? (parsed.data.group?.trim() || null) : s.group,
   };
   db.update(sources).set(next).where(eq(sources.id, id)).run();
   return NextResponse.json({ ...s, ...next });

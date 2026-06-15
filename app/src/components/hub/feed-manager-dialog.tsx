@@ -5,23 +5,30 @@ import { X, Trash2, Plus, Pencil, Check } from "lucide-react";
 
 interface FeedManagerDialogProps {
   sources: ApiSource[];
-  onAdd: (label: string, url: string) => Promise<unknown>;
+  onAdd: (label: string, url: string, group?: string | null) => Promise<unknown>;
   onDelete: (id: string) => Promise<void>;
-  onUpdate: (id: string, label: string, url: string) => Promise<unknown>;
+  onUpdate: (id: string, label: string, url: string, group?: string | null) => Promise<unknown>;
   onClose: () => void;
 }
 
 export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose }: FeedManagerDialogProps) {
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
+  const [group, setGroup] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editUrl, setEditUrl] = useState("");
+  const [editGroup, setEditGroup] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Danh sách folder sẵn có để gợi ý trong datalist.
+  const existingGroups = Array.from(
+    new Set(sources.map((s) => s.group).filter((g): g is string => !!g))
+  ).sort();
 
   const inputStyle: React.CSSProperties = {
     height: 40,
@@ -42,9 +49,10 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
     setSaving(true);
     setError(null);
     try {
-      await onAdd(label.trim(), url.trim());
+      await onAdd(label.trim(), url.trim(), group.trim() || null);
       setLabel("");
       setUrl("");
+      setGroup("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Lỗi thêm nguồn.");
     } finally {
@@ -61,6 +69,7 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
     setEditingId(src.id);
     setEditLabel(src.label);
     setEditUrl(src.url);
+    setEditGroup(src.group ?? "");
     setEditError(null);
   }
 
@@ -74,7 +83,7 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
     setEditSaving(true);
     setEditError(null);
     try {
-      await onUpdate(id, editLabel.trim(), editUrl.trim());
+      await onUpdate(id, editLabel.trim(), editUrl.trim(), editGroup.trim() || null);
       setEditingId(null);
     } catch (err: unknown) {
       setEditError(err instanceof Error ? err.message : "Lỗi cập nhật nguồn.");
@@ -154,6 +163,14 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                         disabled={editSaving}
                       />
                     </div>
+                    <input
+                      value={editGroup}
+                      onChange={(e) => setEditGroup(e.target.value)}
+                      placeholder="Thư mục (tuỳ chọn)"
+                      list="folder-options"
+                      style={{ ...inputStyle, height: 34 }}
+                      disabled={editSaving}
+                    />
                     {editError && <p style={{ fontSize: 12, color: "#b53333", margin: 0 }}>{editError}</p>}
                     <div style={{ display: "flex", gap: 8 }}>
                       <button
@@ -176,7 +193,14 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                   <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
                     <span style={{ width: 10, height: 10, borderRadius: "50%", background: catDots[i % catDots.length], flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{src.label}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{src.label}</span>
+                        {src.group && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", background: "var(--muted)", padding: "1px 7px", borderRadius: 6 }}>
+                            {src.group}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{src.url}</div>
                     </div>
                     <button
@@ -227,6 +251,17 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                 disabled={saving}
                 required
               />
+              <input
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                placeholder="Thư mục (tuỳ chọn, vd: AI)"
+                list="folder-options"
+                style={inputStyle}
+                disabled={saving}
+              />
+              <datalist id="folder-options">
+                {existingGroups.map((g) => <option key={g} value={g} />)}
+              </datalist>
               {error && (
                 <p style={{ fontSize: 13, color: "#b53333", margin: 0 }}>{error}</p>
               )}

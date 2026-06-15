@@ -16,6 +16,8 @@ export const sources = sqliteTable("sources", {
   siteUrl: text("site_url"),
   active: integer("active").notNull().default(1),
   type: text("type").notNull().default("rss"),
+  // Folder do user tự gán (null = chưa phân loại → hiển thị phẳng trong sidebar).
+  group: text("group"),
   createdAt: integer("created_at").notNull(),
 });
 

@@ -8,6 +8,8 @@ export interface ApiSource {
   url: string;
   siteUrl: string | null;
   active: boolean;
+  type: string;
+  group: string | null;
   count: number;
 }
 
@@ -33,11 +35,11 @@ export function useSources() {
 
   useEffect(() => { load(); }, [load]);
 
-  const addSource = useCallback(async (label: string, url: string): Promise<ApiSource> => {
+  const addSource = useCallback(async (label: string, url: string, group?: string | null): Promise<ApiSource> => {
     const res = await fetch("/api/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, url }),
+      body: JSON.stringify({ label, url, group }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Lỗi thêm nguồn.");
@@ -51,16 +53,23 @@ export function useSources() {
     setState((s) => ({ ...s, sources: s.sources.filter((src) => src.id !== id) }));
   }, []);
 
-  const updateSource = useCallback(async (id: string, label: string, url: string): Promise<ApiSource> => {
+  const updateSource = useCallback(async (id: string, label: string, url: string, group?: string | null): Promise<ApiSource> => {
     const res = await fetch(`/api/sources/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, url }),
+      body: JSON.stringify({ label, url, group }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Lỗi cập nhật nguồn.");
-    setState((s) => ({ ...s, sources: s.sources.map((src) => src.id === id ? data : src) }));
-    return data;
+    // PUT trả raw DB row (active=0|1, không có count) → giữ count & active boolean từ state hiện tại
+    // (sửa label/url/group không đổi số bài) để count không nhảy về 0 sau khi sửa.
+    setState((s) => ({
+      ...s,
+      sources: s.sources.map((src) =>
+        src.id === id ? { ...src, ...data, active: src.active, count: src.count } : src
+      ),
+    }));
+    return { ...data, active: !!data.active };
   }, []);
 
   return { ...state, reload: load, addSource, deleteSource, updateSource };

@@ -15,6 +15,7 @@ const probe = new Parser({ timeout: 12000, headers: { "User-Agent": "Mozilla/5.0
 const bodySchema = z.object({
   label: z.string().trim().min(1),
   url: z.string().trim().min(1),
+  group: z.string().trim().nullish(),
 });
 
 function normalizeUrl(u: string): string {
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
   if (existing) return NextResponse.json({ error: "Nguồn đã tồn tại." }, { status: 409 });
 
   const newId = "f" + Date.now();
-  const row = { id: newId, label: parsed.data.label, url: resolvedUrl, siteUrl, active: 1, type: sourceType, createdAt: Date.now() };
+  const row = { id: newId, label: parsed.data.label, url: resolvedUrl, siteUrl, active: 1, type: sourceType, group: parsed.data.group?.trim() || null, createdAt: Date.now() };
   db.insert(sources).values(row).run();
 
   // Kiểm tra xem có sources khác cùng base label không → generate sublabels 1 lần.

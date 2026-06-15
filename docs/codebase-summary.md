@@ -72,6 +72,7 @@
 - Bài YouTube: UI hiển thị tab "▶ Xem video" (iframe embed thay vì nội dung), thumbnail có play-badge overlay.
 
 ## Điểm mở rộng
-- Thêm nguồn báo: dùng Feed Manager (UI) hoặc `POST /api/sources` — hỗ trợ RSS URL hoặc YouTube channel URL → AI tự phân loại.
+- Thêm nguồn báo: dùng Feed Manager (UI) hoặc `POST /api/sources` — hỗ trợ RSS URL hoặc YouTube channel URL → AI tự phân loại; gán vào folder via `group` field.
+- Quản lý folder: source-sidebar tự động ghép feed theo `group`, collapsible (state lưu localStorage); feed-type filter (All/RSS/Video) lọc nguồn hiển thị.
 - Đổi model AI: sửa `MODEL_FAST` / `MODEL_SMART` trong `.env.local`.
 - Auth đa người dùng: thêm bảng user_id vào `saved_articles`/`read_articles` + auth middleware (future).
