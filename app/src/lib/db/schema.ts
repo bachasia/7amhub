@@ -15,6 +15,7 @@ export const sources = sqliteTable("sources", {
   url: text("url").notNull().unique(),
   siteUrl: text("site_url"),
   active: integer("active").notNull().default(1),
+  type: text("type").notNull().default("rss"),
   createdAt: integer("created_at").notNull(),
 });
 

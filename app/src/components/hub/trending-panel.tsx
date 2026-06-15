@@ -109,7 +109,7 @@ export function TrendingPanel({ topics, featured, activeTopic, onTopicSelect, on
                 {catLabel(current.cat)}
               </div>
               <h3 style={{ fontSize: 15.5, lineHeight: 1.38, letterSpacing: "-.01em", fontFamily: "var(--font-display)", fontWeight: 500, margin: 0, minHeight: 44 }}>
-                {current.title}
+                {current.viTitle || current.title}
               </h3>
               {current.summary && (
                 <p style={{

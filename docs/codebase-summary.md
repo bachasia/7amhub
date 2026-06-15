@@ -32,13 +32,13 @@
 │   │       ├── utils.ts              # cn(), misc
 │   │       ├── concurrency.ts        # mapLimit
 │   │       ├── db/
-│   │       │   ├── schema.ts         # sources / articles / digests / saved / read
+│   │       │   ├── schema.ts         # sources (rss|youtube) / articles / digests / saved / read
 │   │       │   ├── client.ts         # better-sqlite3 + drizzle (WAL)
 │   │       │   ├── migrate.ts        # áp dụng migrations (drizzle)
-│   │       │   └── seed-sources.ts   # 5 nguồn VnExpress mặc định (lần đầu)
+│   │       │   └── seed-sources.ts   # 5 nguồn VnExpress + 1 YouTube channel mặc định (lần đầu)
 │   │       ├── ingest/
-│   │       │   ├── rss.ts            # fetch + parse + dedupe + insert
-│   │       │   └── extract.ts        # trích toàn văn (readability + fallback)
+│   │       │   ├── rss.ts            # fetch + parse RSS (hỗ trợ media:group từ YouTube) + dedupe + insert
+│   │       │   └── extract.ts        # trích toàn văn (readability + fallback, bỏ qua YouTube watch URL)
 │   │       ├── ai/
 │   │       │   ├── client.ts         # Anthropic SDK, callJSON (forced tool-use + zod)
 │   │       │   ├── classify.ts       # Haiku: category + tags + lead + points
@@ -69,8 +69,9 @@
 - Mỗi bài chỉ gọi AI 1 lần (theo `ai_status`), tiết kiệm token.
 - Saved/read state server-side (bảng `saved_articles`, `read_articles`) — đa thiết bị, không auth.
 - 2 layouts theo breakpoint: `md:` trở lên → HubView (desktop 3-col); mobile → FeedView (scroll-snap).
+- Bài YouTube: UI hiển thị tab "▶ Xem video" (iframe embed thay vì nội dung), thumbnail có play-badge overlay.
 
 ## Điểm mở rộng
-- Thêm nguồn báo: dùng Feed Manager (UI) hoặc `POST /api/sources` — AI tự phân loại.
+- Thêm nguồn báo: dùng Feed Manager (UI) hoặc `POST /api/sources` — hỗ trợ RSS URL hoặc YouTube channel URL → AI tự phân loại.
 - Đổi model AI: sửa `MODEL_FAST` / `MODEL_SMART` trong `.env.local`.
 - Auth đa người dùng: thêm bảng user_id vào `saved_articles`/`read_articles` + auth middleware (future).

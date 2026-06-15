@@ -57,6 +57,13 @@
       "when": 1781500200000,
       "tag": "0007_worker_heartbeat",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1781519875367,
+      "tag": "0008_modern_zombie",
+      "breakpoints": true
     }
   ]
 }

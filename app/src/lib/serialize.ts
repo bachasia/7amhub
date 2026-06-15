@@ -22,6 +22,7 @@ export interface ApiArticle {
   time: string;
   publishedAt: number | null;
   hotScore: number;
+  sourceType: "rss" | "youtube";
 }
 
 function safeJson<T>(s: string | null, fallback: T): T {
@@ -60,5 +61,6 @@ export function serializeArticle(a: Article, src?: Source): ApiArticle {
     time: relTime(a.publishedAt ?? a.fetchedAt),
     publishedAt: a.publishedAt,
     hotScore: a.hotScore,
+    sourceType: src?.type === "youtube" ? "youtube" : "rss",
   };
 }

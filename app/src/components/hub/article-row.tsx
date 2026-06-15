@@ -97,40 +97,57 @@ export function ArticleRow({ article, source, read, saved, onOpen, onSave }: Art
       </div>
 
       {/* Thumbnail */}
-      {article.img ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={article.img}
-          alt=""
-          style={{
-            width: 148,
-            height: 104,
-            borderRadius: 8,
-            flexShrink: 0,
-            alignSelf: "center",
-            objectFit: "cover",
-            background: "var(--muted)",
-            border: "1px solid var(--border)",
-          }}
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
-        />
-      ) : (
-        <div
-          style={{
-            width: 148,
-            height: 104,
-            borderRadius: 8,
-            flexShrink: 0,
-            alignSelf: "center",
-            display: "grid",
-            placeItems: "center",
-            background: "repeating-linear-gradient(45deg, color-mix(in srgb, var(--foreground) 4%, var(--background)) 0 12px, color-mix(in srgb, var(--foreground) 8%, var(--background)) 12px 24px)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <ImageIcon size={26} style={{ color: "color-mix(in srgb, var(--foreground) 20%, transparent)" }} />
-        </div>
-      )}
+      <div style={{ position: "relative", flexShrink: 0, alignSelf: "center" }}>
+        {article.img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={article.img}
+            alt=""
+            style={{
+              width: 148,
+              height: 104,
+              borderRadius: 8,
+              display: "block",
+              objectFit: "cover",
+              background: "var(--muted)",
+              border: "1px solid var(--border)",
+            }}
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 148,
+              height: 104,
+              borderRadius: 8,
+              display: "grid",
+              placeItems: "center",
+              background: "repeating-linear-gradient(45deg, color-mix(in srgb, var(--foreground) 4%, var(--background)) 0 12px, color-mix(in srgb, var(--foreground) 8%, var(--background)) 12px 24px)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <ImageIcon size={26} style={{ color: "color-mix(in srgb, var(--foreground) 20%, transparent)" }} />
+          </div>
+        )}
+        {/* Play badge — chỉ video YouTube; visual-only */}
+        {article.sourceType === "youtube" && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: "50%",
+              background: "rgba(0,0,0,0.6)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="white">
+                <polygon points="5,3 13,8 5,13" />
+              </svg>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

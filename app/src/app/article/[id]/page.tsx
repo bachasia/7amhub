@@ -21,7 +21,8 @@ async function getArticle(id: string) {
   if (a.content) {
     try { blocks = JSON.parse(a.content); } catch { blocks = []; }
   }
-  if (!blocks.length) {
+  // YouTube: trang watch không trích văn được — bỏ qua extract (giống ai-worker).
+  if (!blocks.length && !a.url.includes("youtube.com/watch")) {
     const ex = await extractFullText(a.url);
     if (ex) {
       blocks = ex.blocks;

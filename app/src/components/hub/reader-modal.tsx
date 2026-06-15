@@ -20,7 +20,7 @@ interface ReaderModalProps {
 }
 
 export function ReaderModal({ article, source, savedIds, onSave, onClose, onMarkRead, initialTab = "ai" }: ReaderModalProps) {
-  const [tab, setTab] = useState<"ai" | "original">(initialTab);
+  const [tab, setTab] = useState<"ai" | "original" | "video">(initialTab);
   const [detail, setDetail] = useState<ArticleDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -101,7 +101,7 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
   }, []);
 
   useEffect(() => {
-    if (tab === "original" && article && !detail) loadDetail(article.id);
+    if (tab === "original" && article && !detail && article.sourceType !== "youtube") loadDetail(article.id);
   }, [tab, article, detail, loadDetail]);
 
   useEffect(() => {
@@ -124,6 +124,11 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
     background: active ? "var(--primary)" : "transparent",
     border: "none", cursor: "pointer",
   });
+
+  // Trích video ID từ URL watch?v= cho YouTube article (dùng cho iframe embed).
+  const videoId = article.sourceType === "youtube"
+    ? (() => { try { return new URL(article.url).searchParams.get("v"); } catch { return null; } })()
+    : null;
 
   // Shared inner content (header + body) — rendered once, used in both mobile/desktop shells
   const modalContent = (
@@ -162,7 +167,10 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
 
         <div style={{ display: "inline-flex", background: "transparent", border: "1px solid var(--border)", borderRadius: 10, padding: 3, marginBottom: 18 }}>
           <button style={tabStyle(tab === "ai")} onClick={() => setTab("ai")}>✦ Tóm tắt AI</button>
-          <button style={tabStyle(tab === "original")} onClick={() => setTab("original")}>Nội dung</button>
+          {article.sourceType === "youtube"
+            ? <button style={tabStyle(tab === "video")} onClick={() => setTab("video")}>▶ Xem video</button>
+            : <button style={tabStyle(tab === "original")} onClick={() => setTab("original")}>Nội dung</button>
+          }
         </div>
 
         {tab === "ai" && (
@@ -185,6 +193,20 @@ export function ReaderModal({ article, source, savedIds, onSave, onClose, onMark
             )}
           </div>
         )}
+
+        {tab === "video" && (videoId ? (
+          <div style={{ borderRadius: 8, overflow: "hidden", aspectRatio: "16/9", background: "#000" }}>
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}?rel=0`}
+              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+              title={article.viTitle || article.title}
+            />
+          </div>
+        ) : (
+          <p style={{ color: "var(--muted-foreground)", fontSize: 14 }}>Không nhúng được video. Hãy mở trên YouTube.</p>
+        ))}
 
         {tab === "original" && (
           <div>

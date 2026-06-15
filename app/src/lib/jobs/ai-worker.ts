@@ -28,8 +28,10 @@ function pickPending(limit: number) {
 }
 
 async function processOne(a: typeof articles.$inferSelect): Promise<boolean> {
+  // YouTube: Readability fail/garbage trên trang watch → bỏ qua extract, dùng rawSummary (description) làm input classify.
+  const isYouTube = a.url.includes("youtube.com/watch");
   let fullText = a.fullText;
-  if (!fullText) {
+  if (!fullText && !isYouTube) {
     const ex = await extractFullText(a.url);
     if (ex) {
       fullText = ex.text;

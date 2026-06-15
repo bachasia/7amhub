@@ -84,6 +84,25 @@ export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleC
             </div>
           )}
 
+          {/* Play badge — chỉ video YouTube; visual-only, không chặn click */}
+          {article.sourceType === "youtube" && (
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              pointerEvents: "none",
+            }}>
+              <div style={{
+                width: 54, height: 54, borderRadius: "50%",
+                background: "rgba(0,0,0,0.6)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="white">
+                  <polygon points="5,3 13,8 5,13" />
+                </svg>
+              </div>
+            </div>
+          )}
+
           {/* Category pill */}
           {article.cat && (
             <span style={{

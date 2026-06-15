@@ -18,7 +18,12 @@ function normalizeTitle(title: string): string {
 const parser = new Parser({
   timeout: 15000,
   headers: { "User-Agent": "Mozilla/5.0 (compatible; 7AMHubBot/1.0)" },
-  customFields: { item: [["media:content", "mediaContent", { keepArray: true }]] },
+  customFields: {
+    item: [
+      ["media:content", "mediaContent", { keepArray: true }],
+      ["media:group", "mediaGroup"], // YouTube Atom: gói thumbnail + description
+    ],
+  },
 });
 
 export interface ParsedItem {
@@ -42,6 +47,17 @@ function parseItem(item: Parser.Item & Record<string, any>, src: Source): Parsed
   const media = item.mediaContent?.[0]?.$?.url;
   const image = firstImage(html) || enclosure || media || null;
 
+  // YouTube fields từ <media:group> (thumbnail + description) — fallback khi feed thường không có.
+  const mg = item.mediaGroup;
+  const ytThumbnail =
+    mg?.["media:thumbnail"]?.[0]?.["$"]?.url ||
+    mg?.["media:thumbnail"]?.["$"]?.url ||
+    null;
+  const ytDesc =
+    mg?.["media:description"]?.[0] ||
+    mg?.["media:description"] ||
+    null;
+
   const pub = item.isoDate || item.pubDate;
   const ts = pub ? new Date(pub).getTime() : NaN;
 
@@ -50,8 +66,8 @@ function parseItem(item: Parser.Item & Record<string, any>, src: Source): Parsed
     sourceId: src.id,
     title,
     url,
-    rawSummary: desc || null,
-    image,
+    rawSummary: desc || (ytDesc ? String(ytDesc).trim() : null),
+    image: image || ytThumbnail || null,
     publishedAt: Number.isNaN(ts) ? null : ts,
   };
 }

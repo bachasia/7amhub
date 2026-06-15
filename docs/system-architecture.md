@@ -23,14 +23,14 @@ nguồn RSS ─cron 15'─▶ │ ingest (rss-parser) → articles(pending)     
 ```
 
 ## Luồng dữ liệu
-1. **Ingest** (`src/lib/ingest/rss.ts`, cron `INGEST_CRON`): fetch nguồn active → parse → dedupe theo `id` (guid||link) → insert `articles` (ai_status=`pending`).
-2. **AI worker** (`src/lib/jobs/ai-worker.ts`, cron `AI_WORKER_CRON`): lấy batch pending → `extractFullText` nếu thiếu → `analyzeArticle` (Haiku, 1 lần) → set category/tags/lead/points/hot_score, ai_status=`ready`. Lỗi: tăng `ai_tries`, tối đa 3 lần → `failed`.
+1. **Ingest** (`src/lib/ingest/rss.ts`, cron `INGEST_CRON`): fetch nguồn active → parse RSS → dedupe theo `id` (guid||link) → insert `articles` (ai_status=`pending`). YouTube feed: trích media:group (thumbnail, description) để bổ sung image/rawSummary.
+2. **AI worker** (`src/lib/jobs/ai-worker.ts`, cron `AI_WORKER_CRON`): lấy batch pending → `extractFullText` nếu thiếu (YouTube bỏ qua Readability) → `analyzeArticle` (Haiku, 1 lần) → set category/tags/lead/points/hot_score, ai_status=`ready`. Lỗi: tăng `ai_tries`, tối đa 3 lần → `failed`.
 3. **Digest** (`src/lib/ai/digest.ts`, cron `DIGEST_CRON` 07:00): bài `ready` trong 24h → Sonnet chọn picks + nhóm theo danh mục → lưu `digests` theo ngày, boost hot_score cho picks.
 4. **API** (`app/api/*/route.ts`) phục vụ React components + SSR (chỉ trả bài `ready`).
 5. **SSR** (`app/article/[id]/page.tsx`): render server-side với OG metadata đầy đủ (title, image) cho share link.
 
 ## Bảng dữ liệu (SQLite, `src/lib/db/schema.ts`)
-- **sources**: `id, label, url(unique), active, created_at`
+- **sources**: `id, label, url(unique), active, type(rss|youtube), created_at` — hỗ trợ RSS feed và YouTube channel (lưu lại dạng feeds/videos.xml).
 - **articles**: `id, source_id, title, url, raw_summary, image, full_text, published_at, fetched_at, category, tags(JSON), ai_lead, ai_points(JSON), hot_score, ai_status(pending|ready|failed), ai_tries`
 - **digests**: `date(PK YYYY-MM-DD), payload(JSON {intro,picks[],byCat[]}), created_at`
 - **saved_articles**: `article_id(PK), saved_at` — server-side saved (đa thiết bị)
@@ -42,7 +42,7 @@ nguồn RSS ─cron 15'─▶ │ ingest (rss-parser) → articles(pending)     
 | GET | `/api/articles?cat&source&q&sort&offset&limit` | danh sách bài ready |
 | GET | `/api/articles/:id` | chi tiết + paragraphs |
 | GET | `/api/sources` | danh sách nguồn + số bài |
-| POST | `/api/sources` | thêm nguồn (xác minh RSS hợp lệ) |
+| POST | `/api/sources` | thêm nguồn: RSS URL hoặc YouTube channel (@handle, /channel/UCxxx) → resolve thành feeds/videos.xml RSS |
 | PUT/DELETE | `/api/sources/:id` | sửa / xoá nguồn |
 | GET | `/api/digest/today?date` | bản tin "Đề xuất 7AM" |
 | GET | `/api/trending?limit` | tag nổi bật |

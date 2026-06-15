@@ -1,0 +1,1 @@
+ALTER TABLE `sources` ADD `type` text DEFAULT 'rss' NOT NULL;
