@@ -52,6 +52,8 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SOURCE_HASH=${{ hashFiles('app/src/**', 'app/postcss.config.mjs', 'app/package.json') }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

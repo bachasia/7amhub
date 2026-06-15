@@ -11,6 +11,9 @@ RUN npm ci
 
 # ─── Stage 2: Build Next.js app ───────────────────────────────────────────────
 FROM deps AS builder
+# SOURCE_HASH changes whenever app source files change, busting the build cache
+ARG SOURCE_HASH=default
+RUN echo "$SOURCE_HASH" > /tmp/source.hash
 COPY app/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
