@@ -3,7 +3,7 @@ import { z } from "zod";
 import { config } from "../config";
 import { callJSON } from "./client";
 
-export const CATEGORIES = ["world", "tech", "ai", "science", "dev", "biz"] as const;
+export const CATEGORIES = ["world", "tech", "ai", "science", "dev", "biz", "sports"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 const resultSchema = z.object({
@@ -23,6 +23,7 @@ const SYSTEM = `Bạn là biên tập viên tin tức công nghệ. Với mỗi 
    - "tech": bài về sản phẩm phần cứng/phần mềm thương mại (iPhone, Android, chip, console, browser, OS), cybersecurity, cloud platform (AWS, GCP, Azure) ở góc độ dịch vụ, IoT.
    - "science": bài về nghiên cứu khoa học, khám phá vũ trụ/thiên văn, y học, sinh học, vật lý, môi trường, biến đổi khí hậu.
    - "biz": bài về kinh doanh, tài chính, startup funding, IPO, M&A, thị trường chứng khoán, kinh tế vĩ mô, chiến lược doanh nghiệp.
+   - "sports": bài về thể thao, bóng đá, bóng rổ, tennis, F1, Olympic, giải đấu, vận động viên, kết quả thi đấu, chuyển nhượng cầu thủ.
    - "world": bài về chính trị quốc tế, địa chính trị, xung đột, ngoại giao, văn hóa xã hội toàn cầu, pháp lý quốc tế.
 
    Quy tắc phân biệt quan trọng:

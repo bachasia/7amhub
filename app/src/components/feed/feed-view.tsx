@@ -111,6 +111,7 @@ export function FeedView() {
     { key: "science", label: "Khoa học" },
     { key: "world", label: "Thế giới" },
     { key: "biz", label: "Kinh doanh" },
+    { key: "sports", label: "Thể thao" },
   ];
 
   const iconBtnStyle: React.CSSProperties = {
