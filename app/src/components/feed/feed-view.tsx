@@ -36,6 +36,12 @@ export function FeedView() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const [hasScrolled, setHasScrolled] = useState(false);
+  // Ngày hiện tại tính sau khi mount: tránh hydration mismatch do `new Date()` + locale
+  // vi-VN khác nhau giữa server (Node ICU → "Th 2") và trình duyệt ("Thứ 2").
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "numeric", month: "numeric" }));
+  }, []);
 
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -150,8 +156,8 @@ export function FeedView() {
             <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7H</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <span>7<span style={{ color: "var(--primary)" }}>AM</span> Hub</span>
-              <span style={{ fontSize: 10, color: "var(--muted-foreground)", fontWeight: 500, letterSpacing: ".04em", textTransform: "none" }}>
-                {new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "numeric", month: "numeric" })}
+              <span suppressHydrationWarning style={{ fontSize: 10, color: "var(--muted-foreground)", fontWeight: 500, letterSpacing: ".04em", textTransform: "none" }}>
+                {today}
               </span>
             </div>
           </div>
