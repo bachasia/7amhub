@@ -1,13 +1,19 @@
 /**
  * Fetch + parse RSS server-side.
  * Mỗi item RSS → bản ghi `articles` ở trạng thái ai_status=pending để AI worker xử lý sau.
- * Dedupe theo id (guid||link) VÀ url: tránh duplicate khi feed trả GUID ngẫu nhiên mỗi lần fetch.
+ * Dedupe 3 lớp: id (guid||link), url, và normalized title — tránh duplicate khi feed trả
+ * GUID ngẫu nhiên hoặc publish cùng story nhiều lần với title/URL hơi khác nhau.
  */
 import Parser from "rss-parser";
-import { inArray, eq, or } from "drizzle-orm";
+import { inArray, eq, or, and, gt } from "drizzle-orm";
 import { db } from "../db/client";
 import { articles, sources, type Source } from "../db/schema";
 import { stripHtml, firstImage } from "../html";
+
+/** Chuẩn hóa title để so sánh: lowercase, bỏ ký tự đặc biệt, collapse spaces. */
+function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+}
 
 const parser = new Parser({
   timeout: 15000,
@@ -60,23 +66,44 @@ async function fetchSource(src: Source): Promise<ParsedItem[]> {
     .filter((x): x is ParsedItem => x !== null);
 }
 
-/** Fetch 1 nguồn, dedupe theo id VÀ url, insert bài mới. Trả số bài mới. */
+/** Fetch 1 nguồn, dedupe theo id, url VÀ normalized title, insert bài mới. Trả số bài mới. */
 export async function ingestOne(sourceId: string): Promise<{ inserted: number }> {
   const src = db.select().from(sources).where(eq(sources.id, sourceId)).get();
   if (!src) throw new Error("source not found");
   const items = await fetchSource(src);
   if (!items.length) return { inserted: 0 };
-  const uniq = new Map(items.map((it) => [it.id, it]));
+
+  // In-batch dedup: by id then by normalized title
+  const uniqById = new Map(items.map((it) => [it.id, it]));
+  const seenTitles = new Set<string>();
+  const uniq = new Map<string, ParsedItem>();
+  for (const [id, item] of uniqById) {
+    const tk = normalizeTitle(item.title);
+    if (!seenTitles.has(tk)) { seenTitles.add(tk); uniq.set(id, item); }
+  }
+
   const ids = [...uniq.keys()];
   const urls = [...uniq.values()].map((it) => it.url);
+  const recentCutoff = Date.now() - 24 * 60 * 60 * 1000;
+
   const existingRows = db
     .select({ id: articles.id, url: articles.url })
     .from(articles)
     .where(or(inArray(articles.id, ids), inArray(articles.url, urls)))
     .all();
+  const recentRows = db
+    .select({ title: articles.title })
+    .from(articles)
+    .where(and(eq(articles.sourceId, sourceId), gt(articles.fetchedAt, recentCutoff)))
+    .all();
+
   const existingIds = new Set(existingRows.map((r) => r.id));
   const existingUrls = new Set(existingRows.map((r) => r.url));
-  const fresh = [...uniq.values()].filter((it) => !existingIds.has(it.id) && !existingUrls.has(it.url));
+  const existingTitles = new Set(recentRows.map((r) => normalizeTitle(r.title)));
+
+  const fresh = [...uniq.values()].filter(
+    (it) => !existingIds.has(it.id) && !existingUrls.has(it.url) && !existingTitles.has(normalizeTitle(it.title))
+  );
   if (fresh.length) {
     db.insert(articles).values(fresh.map((it) => ({ ...it, fetchedAt: Date.now() }))).run();
   }
@@ -96,20 +123,41 @@ export async function ingestAll(): Promise<{ inserted: number; failed: number; s
 
   if (!items.length) return { inserted: 0, failed, sources: active.length };
 
+  // In-batch dedup: by id first, then by (sourceId + normalized title)
+  const uniqById = new Map<string, ParsedItem>();
+  for (const it of items) if (!uniqById.has(it.id)) uniqById.set(it.id, it);
+  const seenTitleKeys = new Set<string>();
   const uniq = new Map<string, ParsedItem>();
-  for (const it of items) if (!uniq.has(it.id)) uniq.set(it.id, it);
+  for (const [id, item] of uniqById) {
+    const tk = `${item.sourceId}:${normalizeTitle(item.title)}`;
+    if (!seenTitleKeys.has(tk)) { seenTitleKeys.add(tk); uniq.set(id, item); }
+  }
+
   const ids = [...uniq.keys()];
   const urls = [...uniq.values()].map((it) => it.url);
+  const sourceIds = [...new Set([...uniq.values()].map((it) => it.sourceId))];
+  const recentCutoff = Date.now() - 24 * 60 * 60 * 1000;
 
   const existingRows = ids.length
     ? db.select({ id: articles.id, url: articles.url }).from(articles)
         .where(or(inArray(articles.id, ids), inArray(articles.url, urls))).all()
     : [];
+  const recentRows = sourceIds.length
+    ? db.select({ sourceId: articles.sourceId, title: articles.title }).from(articles)
+        .where(and(inArray(articles.sourceId, sourceIds), gt(articles.fetchedAt, recentCutoff))).all()
+    : [];
+
   const existingIds = new Set(existingRows.map((r) => r.id));
   const existingUrls = new Set(existingRows.map((r) => r.url));
+  const existingTitleKeys = new Set(recentRows.map((r) => `${r.sourceId}:${normalizeTitle(r.title)}`));
 
   const now = Date.now();
-  const fresh = [...uniq.values()].filter((it) => !existingIds.has(it.id) && !existingUrls.has(it.url));
+  const fresh = [...uniq.values()].filter(
+    (it) =>
+      !existingIds.has(it.id) &&
+      !existingUrls.has(it.url) &&
+      !existingTitleKeys.has(`${it.sourceId}:${normalizeTitle(it.title)}`)
+  );
   if (fresh.length) {
     db.insert(articles).values(fresh.map((it) => ({ ...it, fetchedAt: now }))).run();
   }
