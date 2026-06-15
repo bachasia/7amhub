@@ -128,11 +128,10 @@
   --sidebar-ring: #e07050;
 }
 
-/* Article card bullet points: hidden on mobile, flex column on desktop */
-@media (min-width: 768px) {
+/* Article card bullet points: hidden on mobile, visible on desktop */
+@media (max-width: 767px) {
   .card-points {
-    display: flex !important;
-    flex-direction: column;
+    display: none !important;
   }
 }
 

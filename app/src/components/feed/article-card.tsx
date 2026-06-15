@@ -30,7 +30,6 @@ interface ArticleCardProps {
 export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleCardProps) {
   const bg = CAT_BG[article.cat ?? ""] ?? "#5e5d59";
   const pill = CAT_PILL[article.cat ?? ""] ?? "#87867f";
-
   return (
     <div
       data-cat={article.cat ?? ""}
@@ -179,7 +178,7 @@ export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleC
             )}
 
             {article.points.length > 0 && (
-              <div className="card-points" style={{ margin: "13px 0 0", gap: 8, display: "none", flexDirection: "column" }}>
+              <div className="card-points" style={{ margin: "13px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
                 {article.points.map((pt, i) => (
                   <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,.65)", flexShrink: 0, marginTop: 8 }} />
