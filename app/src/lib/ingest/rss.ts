@@ -1,10 +1,10 @@
 /**
  * Fetch + parse RSS server-side.
  * Mỗi item RSS → bản ghi `articles` ở trạng thái ai_status=pending để AI worker xử lý sau.
- * Dedupe theo id (guid||link): bài đã có trong DB sẽ bị bỏ qua.
+ * Dedupe theo id (guid||link) VÀ url: tránh duplicate khi feed trả GUID ngẫu nhiên mỗi lần fetch.
  */
 import Parser from "rss-parser";
-import { inArray, eq } from "drizzle-orm";
+import { inArray, eq, or } from "drizzle-orm";
 import { db } from "../db/client";
 import { articles, sources, type Source } from "../db/schema";
 import { stripHtml, firstImage } from "../html";
@@ -60,7 +60,7 @@ async function fetchSource(src: Source): Promise<ParsedItem[]> {
     .filter((x): x is ParsedItem => x !== null);
 }
 
-/** Fetch 1 nguồn, dedupe, insert bài mới. Trả số bài mới. */
+/** Fetch 1 nguồn, dedupe theo id VÀ url, insert bài mới. Trả số bài mới. */
 export async function ingestOne(sourceId: string): Promise<{ inserted: number }> {
   const src = db.select().from(sources).where(eq(sources.id, sourceId)).get();
   if (!src) throw new Error("source not found");
@@ -68,10 +68,15 @@ export async function ingestOne(sourceId: string): Promise<{ inserted: number }>
   if (!items.length) return { inserted: 0 };
   const uniq = new Map(items.map((it) => [it.id, it]));
   const ids = [...uniq.keys()];
-  const existing = new Set(
-    db.select({ id: articles.id }).from(articles).where(inArray(articles.id, ids)).all().map((r) => r.id)
-  );
-  const fresh = [...uniq.values()].filter((it) => !existing.has(it.id));
+  const urls = [...uniq.values()].map((it) => it.url);
+  const existingRows = db
+    .select({ id: articles.id, url: articles.url })
+    .from(articles)
+    .where(or(inArray(articles.id, ids), inArray(articles.url, urls)))
+    .all();
+  const existingIds = new Set(existingRows.map((r) => r.id));
+  const existingUrls = new Set(existingRows.map((r) => r.url));
+  const fresh = [...uniq.values()].filter((it) => !existingIds.has(it.id) && !existingUrls.has(it.url));
   if (fresh.length) {
     db.insert(articles).values(fresh.map((it) => ({ ...it, fetchedAt: Date.now() }))).run();
   }
@@ -94,15 +99,17 @@ export async function ingestAll(): Promise<{ inserted: number; failed: number; s
   const uniq = new Map<string, ParsedItem>();
   for (const it of items) if (!uniq.has(it.id)) uniq.set(it.id, it);
   const ids = [...uniq.keys()];
+  const urls = [...uniq.values()].map((it) => it.url);
 
-  const existing = new Set(
-    ids.length
-      ? db.select({ id: articles.id }).from(articles).where(inArray(articles.id, ids)).all().map((r) => r.id)
-      : []
-  );
+  const existingRows = ids.length
+    ? db.select({ id: articles.id, url: articles.url }).from(articles)
+        .where(or(inArray(articles.id, ids), inArray(articles.url, urls))).all()
+    : [];
+  const existingIds = new Set(existingRows.map((r) => r.id));
+  const existingUrls = new Set(existingRows.map((r) => r.url));
 
   const now = Date.now();
-  const fresh = [...uniq.values()].filter((it) => !existing.has(it.id));
+  const fresh = [...uniq.values()].filter((it) => !existingIds.has(it.id) && !existingUrls.has(it.url));
   if (fresh.length) {
     db.insert(articles).values(fresh.map((it) => ({ ...it, fetchedAt: now }))).run();
   }
