@@ -1,7 +1,89 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { ApiSource } from "@/hooks/use-sources";
-import { X, Trash2, Plus, Pencil, Check } from "lucide-react";
+import { X, Trash2, Plus, Pencil, Check, ChevronDown } from "lucide-react";
+
+function FolderCombobox({
+  value,
+  onChange,
+  options,
+  disabled,
+  inputStyle,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  disabled?: boolean;
+  inputStyle: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const filtered = options.filter((o) =>
+    o.toLowerCase().includes(value.toLowerCase())
+  );
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <input
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Thư mục (tuỳ chọn)"
+        disabled={disabled}
+        style={{ ...inputStyle, paddingRight: 36 }}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => setOpen((o) => !o)}
+        disabled={disabled}
+        style={{
+          position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer",
+          color: "var(--muted-foreground)", padding: 0, display: "flex",
+        }}
+      >
+        <ChevronDown size={15} style={{ transition: ".15s", transform: open ? "rotate(180deg)" : "none" }} />
+      </button>
+      {open && options.length > 0 && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 200,
+          background: "var(--card)", border: "1px solid var(--border)",
+          borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,.12)",
+          overflow: "hidden",
+        }}>
+          {(filtered.length > 0 ? filtered : options).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onChange(opt); setOpen(false); }}
+              style={{
+                width: "100%", textAlign: "left", padding: "9px 14px",
+                fontSize: 13.5, fontWeight: 500, background: "none",
+                border: "none", cursor: "pointer", color: "var(--foreground)",
+                display: "flex", alignItems: "center", gap: 8,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--muted)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--primary)", flexShrink: 0 }} />
+              {opt}
+              {value === opt && <Check size={13} style={{ marginLeft: "auto", color: "var(--primary)" }} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface FeedManagerDialogProps {
   sources: ApiSource[];
@@ -163,13 +245,12 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                         disabled={editSaving}
                       />
                     </div>
-                    <input
+                    <FolderCombobox
                       value={editGroup}
-                      onChange={(e) => setEditGroup(e.target.value)}
-                      placeholder="Thư mục (tuỳ chọn)"
-                      list="folder-options"
-                      style={{ ...inputStyle, height: 34 }}
+                      onChange={setEditGroup}
+                      options={existingGroups}
                       disabled={editSaving}
+                      inputStyle={{ ...inputStyle, height: 34 }}
                     />
                     {editError && <p style={{ fontSize: 12, color: "#b53333", margin: 0 }}>{editError}</p>}
                     <div style={{ display: "flex", gap: 8 }}>
@@ -251,17 +332,13 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                 disabled={saving}
                 required
               />
-              <input
+              <FolderCombobox
                 value={group}
-                onChange={(e) => setGroup(e.target.value)}
-                placeholder="Thư mục (tuỳ chọn, vd: AI)"
-                list="folder-options"
-                style={inputStyle}
+                onChange={setGroup}
+                options={existingGroups}
                 disabled={saving}
+                inputStyle={inputStyle}
               />
-              <datalist id="folder-options">
-                {existingGroups.map((g) => <option key={g} value={g} />)}
-              </datalist>
               {error && (
                 <p style={{ fontSize: 13, color: "#b53333", margin: 0 }}>{error}</p>
               )}

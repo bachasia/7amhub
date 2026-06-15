@@ -252,7 +252,11 @@ export function SourceSidebar({ sources, activeSourceId, onSelect, onManage, onR
             <span style={{ flex: 1, textAlign: "left" }}>{name}</span>
             <span style={countStyle(false)}>{items.reduce((n, s) => n + (s.count ?? 0), 0)}</span>
           </button>
-          {openGroups.has(name) && items.map((src) => renderRow(src, items))}
+          {openGroups.has(name) && (
+            <div style={{ paddingLeft: 12 }}>
+              {items.map((src) => renderRow(src, items))}
+            </div>
+          )}
         </div>
       ))}
 
