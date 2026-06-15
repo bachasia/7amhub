@@ -11,6 +11,7 @@ const CAT_BG: Record<string, string> = {
   biz: "#a05c20",
   world: "#6b4f3a",
   sports: "#1a6b3a",
+  local: "#7a3d3d",
 };
 const CAT_PILL: Record<string, string> = {
   tech: "#d97757",
@@ -19,6 +20,7 @@ const CAT_PILL: Record<string, string> = {
   biz: "#c47a3a",
   world: "#8b6b55",
   sports: "#2d9e5a",
+  local: "#a05555",
 };
 
 interface ArticleCardProps {

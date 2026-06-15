@@ -112,6 +112,7 @@ export function FeedView() {
     { key: "world", label: "Thế giới" },
     { key: "biz", label: "Kinh doanh" },
     { key: "sports", label: "Thể thao" },
+    { key: "local", label: "Trong nước" },
   ];
 
   const iconBtnStyle: React.CSSProperties = {
