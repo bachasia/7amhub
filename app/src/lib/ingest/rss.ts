@@ -34,18 +34,36 @@ export interface ParsedItem {
   rawSummary: string | null;
   image: string | null;
   publishedAt: number | null;
+  feedOrder: number | null;
 }
 
-function parseItem(item: Parser.Item & Record<string, any>, src: Source): ParsedItem | null {
+/** Nguồn dạng bảng xếp hạng (GitHub/Product Hunt/HN…): thứ tự item trong XML = thứ hạng. */
+export function isTrendingSource(src: Source): boolean {
+  return src.type === "trending";
+}
+
+function parseItem(
+  item: Parser.Item & Record<string, any>,
+  src: Source,
+  index: number,
+  channelTs: number | null
+): ParsedItem | null {
   const url = (item.link || "").trim();
   const title = (item.title || "").trim();
   if (!url || !title) return null;
 
-  const html = item["content:encoded"] || item.content || item.summary || "";
+  const trending = isTrendingSource(src);
+  const fullHtml = item["content:encoded"] || item.content || item.summary || "";
+  // Trending: lấy đoạn mô tả ngắn trước <hr> đầu tiên (vd GitHub: bỏ phần README dài phía sau).
+  // Feed không có <hr> thì split trả nguyên chuỗi → vô hại.
+  const html = trending ? fullHtml.split(/<hr\s*\/?>/i)[0] : fullHtml;
   const desc = stripHtml(html);
   const enclosure = item.enclosure?.url;
   const media = item.mediaContent?.[0]?.$?.url;
-  const image = firstImage(html) || enclosure || media || null;
+  // Trending: ưu tiên ảnh OG (<media:content>) hơn ảnh đầu trong README (thường là badge).
+  const image = trending
+    ? media || firstImage(fullHtml) || enclosure || null
+    : firstImage(html) || enclosure || media || null;
 
   // YouTube fields từ <media:group> (thumbnail + description) — fallback khi feed thường không có.
   const mg = item.mediaGroup;
@@ -60,6 +78,8 @@ function parseItem(item: Parser.Item & Record<string, any>, src: Source): Parsed
 
   const pub = item.isoDate || item.pubDate;
   const ts = pub ? new Date(pub).getTime() : NaN;
+  // Trending feed thường không có pubDate cấp item → fallback về pubDate cấp channel (ngày snapshot).
+  const publishedAt = Number.isNaN(ts) ? (trending ? channelTs : null) : ts;
 
   return {
     id: (item.guid || url).trim(),
@@ -68,7 +88,8 @@ function parseItem(item: Parser.Item & Record<string, any>, src: Source): Parsed
     url,
     rawSummary: desc || (ytDesc ? String(ytDesc).trim() : null),
     image: image || ytThumbnail || null,
-    publishedAt: Number.isNaN(ts) ? null : ts,
+    publishedAt,
+    feedOrder: trending ? index : null,
   };
 }
 
@@ -77,15 +98,67 @@ async function fetchSource(src: Source): Promise<ParsedItem[]> {
   if (!src.siteUrl && feed.link) {
     db.update(sources).set({ siteUrl: feed.link }).where(eq(sources.id, src.id)).run();
   }
+  const channelTs = feed.pubDate ? new Date(feed.pubDate).getTime() : null;
   return (feed.items || [])
-    .map((it) => parseItem(it as any, src))
+    .map((it, i) => parseItem(it as any, src, i, Number.isNaN(channelTs as number) ? null : channelTs))
     .filter((x): x is ParsedItem => x !== null);
+}
+
+/**
+ * Ingest nguồn trending (bảng xếp hạng): upsert theo thứ hạng, refresh mỗi lần fetch.
+ * Reset feed_order của toàn nguồn về NULL rồi gán lại theo snapshot mới → repo rớt hạng
+ * mất feed_order (không hiện trong ranked list) nhưng giữ row + dữ liệu AI để dùng lại khi trend lần sau.
+ */
+export async function ingestTrending(src: Source): Promise<{ inserted: number }> {
+  const items = await fetchSource(src);
+  if (!items.length) return { inserted: 0 };
+
+  // Dedupe in-batch theo id (repo URL ổn định, giữ item có rank cao nhất = xuất hiện trước).
+  const uniq = new Map<string, ParsedItem>();
+  for (const it of items) if (!uniq.has(it.id)) uniq.set(it.id, it);
+  const list = [...uniq.values()];
+
+  const ids = list.map((it) => it.id);
+  const urls = list.map((it) => it.url);
+  const existing = db
+    .select({ id: articles.id, url: articles.url })
+    .from(articles)
+    .where(or(inArray(articles.id, ids), inArray(articles.url, urls)))
+    .all();
+  const existingById = new Map(existing.map((r) => [r.id, r.id] as const));
+  const existingByUrl = new Map(existing.map((r) => [r.url, r.id] as const));
+
+  const now = Date.now();
+  let inserted = 0;
+  db.transaction((tx) => {
+    // Xoá snapshot trending cũ của nguồn này trước khi gán lại thứ hạng mới.
+    tx.update(articles).set({ feedOrder: null }).where(eq(articles.sourceId, src.id)).run();
+    for (const it of list) {
+      const existingId = existingById.get(it.id) ?? existingByUrl.get(it.url);
+      if (existingId) {
+        tx.update(articles)
+          .set({
+            feedOrder: it.feedOrder,
+            fetchedAt: now,
+            publishedAt: it.publishedAt,
+            ...(it.image ? { image: it.image } : {}),
+          })
+          .where(eq(articles.id, existingId))
+          .run();
+      } else {
+        tx.insert(articles).values({ ...it, fetchedAt: now }).run();
+        inserted++;
+      }
+    }
+  });
+  return { inserted };
 }
 
 /** Fetch 1 nguồn, dedupe theo id, url VÀ normalized title, insert bài mới. Trả số bài mới. */
 export async function ingestOne(sourceId: string): Promise<{ inserted: number }> {
   const src = db.select().from(sources).where(eq(sources.id, sourceId)).get();
   if (!src) throw new Error("source not found");
+  if (isTrendingSource(src)) return ingestTrending(src);
   const items = await fetchSource(src);
   if (!items.length) return { inserted: 0 };
 
@@ -131,13 +204,22 @@ export async function ingestAll(): Promise<{ inserted: number; failed: number; s
   const active = db.select().from(sources).where(eq(sources.active, 1)).all();
   if (!active.length) return { inserted: 0, failed: 0, sources: 0 };
 
-  const results = await Promise.allSettled(active.map(fetchSource));
-  const failed = results.filter((r) => r.status === "rejected").length;
+  // Nguồn trending dùng upsert riêng (theo thứ hạng); nguồn thường dùng dedup news chuẩn.
+  const trendingSources = active.filter(isTrendingSource);
+  const normalSources = active.filter((s) => !isTrendingSource(s));
+
+  const trendingResults = await Promise.allSettled(trendingSources.map(ingestTrending));
+  let inserted = 0;
+  let failed = trendingResults.filter((r) => r.status === "rejected").length;
+  for (const r of trendingResults) if (r.status === "fulfilled") inserted += r.value.inserted;
+
+  const results = await Promise.allSettled(normalSources.map(fetchSource));
+  failed += results.filter((r) => r.status === "rejected").length;
   const items = results
     .filter((r): r is PromiseFulfilledResult<ParsedItem[]> => r.status === "fulfilled")
     .flatMap((r) => r.value);
 
-  if (!items.length) return { inserted: 0, failed, sources: active.length };
+  if (!items.length) return { inserted, failed, sources: active.length };
 
   // In-batch dedup: by id first, then by (sourceId + normalized title)
   const uniqById = new Map<string, ParsedItem>();
@@ -177,5 +259,5 @@ export async function ingestAll(): Promise<{ inserted: number; failed: number; s
   if (fresh.length) {
     db.insert(articles).values(fresh.map((it) => ({ ...it, fetchedAt: now }))).run();
   }
-  return { inserted: fresh.length, failed, sources: active.length };
+  return { inserted: inserted + fresh.length, failed, sources: active.length };
 }

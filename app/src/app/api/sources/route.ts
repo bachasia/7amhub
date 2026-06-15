@@ -16,10 +16,21 @@ const bodySchema = z.object({
   label: z.string().trim().min(1),
   url: z.string().trim().min(1),
   group: z.string().trim().nullish(),
+  // Opt-in thủ công: đánh dấu feed là nguồn xếp hạng (thứ tự item = thứ hạng).
+  trending: z.boolean().optional(),
 });
 
 function normalizeUrl(u: string): string {
   return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+}
+
+/** Auto-detect feed xếp hạng theo URL của các vendor đã biết (vd GitHub Trending RSS). */
+function isKnownTrendingUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    // GitHub Trending RSS (mshibanami)
+    return u.hostname === "mshibanami.github.io" && u.pathname.includes("GitHubTrendingRSS");
+  } catch { return false; }
 }
 
 /** Phát hiện URL channel YouTube dạng `@handle` hoặc `/channel/UCxxx` (không phải feed RSS). */
@@ -108,9 +119,12 @@ export async function POST(req: NextRequest) {
   const url = normalizeUrl(parsed.data.url);
 
   // YouTube channel URL → resolve thành RSS feed URL; đánh dấu type='youtube'.
+  // Nguồn xếp hạng: auto-detect URL đã biết HOẶC opt-in thủ công qua cờ `trending`.
   let resolvedUrl = url;
-  let sourceType: "rss" | "youtube" = "rss";
-  if (isYouTubeChannelUrl(url)) {
+  let sourceType: "rss" | "youtube" | "trending" = "rss";
+  if (isKnownTrendingUrl(url) || parsed.data.trending) {
+    sourceType = "trending";
+  } else if (isYouTubeChannelUrl(url)) {
     const rssUrl = await resolveYouTubeRssUrl(url);
     if (!rssUrl) {
       return NextResponse.json(
@@ -142,8 +156,9 @@ export async function POST(req: NextRequest) {
   // Kiểm tra xem có sources khác cùng base label không → generate sublabels 1 lần.
   // Bỏ qua YouTube: slug từ feeds/videos.xml ra "videos" (vô nghĩa).
   const base = baseLabel(parsed.data.label);
-  const allSources = sourceType === "youtube" ? [] : db.select().from(sources).all();
-  const group = allSources.filter((s) => s.type !== "youtube" && baseLabel(s.label) === base);
+  const skipSublabels = sourceType === "youtube" || sourceType === "trending";
+  const allSources = skipSublabels ? [] : db.select().from(sources).all();
+  const group = allSources.filter((s) => s.type === "rss" && baseLabel(s.label) === base);
   if (group.length > 1) {
     const needsLabel = group.filter((s) => !s.sublabel);
     if (needsLabel.length > 0) {

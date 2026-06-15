@@ -34,6 +34,9 @@ export const articles = sqliteTable(
     content: text("content"),
     publishedAt: integer("published_at"),
     fetchedAt: integer("fetched_at").notNull(),
+    // Thứ hạng trong feed trending (vị trí item trong XML, 0-based). NULL = không thuộc
+    // snapshot trending hiện tại. Refresh ghi đè mỗi lần fetch → phản ánh rank đổi theo ngày.
+    feedOrder: integer("feed_order"),
     category: text("category"),
     tags: text("tags"),
     aiTitle: text("ai_title"),

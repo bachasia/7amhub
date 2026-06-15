@@ -87,7 +87,7 @@ function FolderCombobox({
 
 interface FeedManagerDialogProps {
   sources: ApiSource[];
-  onAdd: (label: string, url: string, group?: string | null) => Promise<unknown>;
+  onAdd: (label: string, url: string, group?: string | null, trending?: boolean) => Promise<unknown>;
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, label: string, url: string, group?: string | null) => Promise<unknown>;
   onClose: () => void;
@@ -97,6 +97,7 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [group, setGroup] = useState("");
+  const [trending, setTrending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -131,10 +132,11 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
     setSaving(true);
     setError(null);
     try {
-      await onAdd(label.trim(), url.trim(), group.trim() || null);
+      await onAdd(label.trim(), url.trim(), group.trim() || null, trending);
       setLabel("");
       setUrl("");
       setGroup("");
+      setTrending(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Lỗi thêm nguồn.");
     } finally {
@@ -339,6 +341,45 @@ export function FeedManagerDialog({ sources, onAdd, onDelete, onUpdate, onClose 
                 disabled={saving}
                 inputStyle={inputStyle}
               />
+              <label
+                style={{
+                  display: "flex", alignItems: "center", gap: 12, cursor: saving ? "not-allowed" : "pointer",
+                  padding: "11px 14px", borderRadius: 10,
+                  border: `1px solid ${trending ? "var(--primary)" : "var(--border)"}`,
+                  background: trending ? "color-mix(in oklab, var(--primary) 6%, var(--background))" : "var(--background)",
+                  transition: ".15s",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={trending}
+                  onChange={(e) => setTrending(e.target.checked)}
+                  disabled={saving}
+                  style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+                />
+                {/* Toggle track */}
+                <span
+                  style={{
+                    flexShrink: 0, width: 36, height: 20, borderRadius: 999,
+                    background: trending ? "var(--primary)" : "var(--border)",
+                    position: "relative", transition: ".2s",
+                  }}
+                >
+                  <span style={{
+                    position: "absolute", top: 3, left: trending ? 19 : 3,
+                    width: 14, height: 14, borderRadius: "50%", background: "#fff",
+                    transition: ".2s", boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+                  }} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: trending ? "var(--primary)" : "var(--foreground)" }}>
+                    Nguồn xếp hạng (trending)
+                  </span>
+                  <span style={{ display: "block", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.45, marginTop: 2 }}>
+                    Hiển thị dạng bảng xếp hạng theo thứ tự feed (vd GitHub Trending).
+                  </span>
+                </span>
+              </label>
               {error && (
                 <p style={{ fontSize: 13, color: "#b53333", margin: 0 }}>{error}</p>
               )}

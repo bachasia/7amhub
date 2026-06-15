@@ -71,6 +71,13 @@
       "when": 1781526952388,
       "tag": "0009_pale_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1781532772891,
+      "tag": "0010_sparkling_jocasta",
+      "breakpoints": true
     }
   ]
 }

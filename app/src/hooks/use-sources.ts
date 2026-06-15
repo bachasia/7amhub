@@ -35,11 +35,11 @@ export function useSources() {
 
   useEffect(() => { load(); }, [load]);
 
-  const addSource = useCallback(async (label: string, url: string, group?: string | null): Promise<ApiSource> => {
+  const addSource = useCallback(async (label: string, url: string, group?: string | null, trending?: boolean): Promise<ApiSource> => {
     const res = await fetch("/api/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, url, group }),
+      body: JSON.stringify({ label, url, group, trending }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Lỗi thêm nguồn.");

@@ -27,11 +27,20 @@ function pickPending(limit: number) {
     .all();
 }
 
+/** Trang repo GitHub (github.com/owner/repo): README dài, không phải "bài báo" → bỏ extract. */
+function isRepoPage(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname === "github.com" && /^\/[^/]+\/[^/]+\/?$/.test(u.pathname);
+  } catch { return false; }
+}
+
 async function processOne(a: typeof articles.$inferSelect): Promise<boolean> {
-  // YouTube: Readability fail/garbage trên trang watch → bỏ qua extract, dùng rawSummary (description) làm input classify.
-  const isYouTube = a.url.includes("youtube.com/watch");
+  // YouTube watch + repo trending: Readability fail/garbage hoặc README dài → bỏ qua extract,
+  // dùng rawSummary (description ngắn) làm input classify.
+  const skipExtract = a.url.includes("youtube.com/watch") || isRepoPage(a.url);
   let fullText = a.fullText;
-  if (!fullText && !isYouTube) {
+  if (!fullText && !skipExtract) {
     const ex = await extractFullText(a.url);
     if (ex) {
       fullText = ex.text;

@@ -16,6 +16,7 @@ import { TrendingPanel } from "./trending-panel";
 import { ChatPanel } from "./chat-panel";
 import { DigestView } from "./digest-view";
 import { ArticleRow } from "./article-row";
+import { RankedList } from "./ranked-list";
 import { ReaderModal } from "./reader-modal";
 import { FeedManagerDialog } from "./feed-manager-dialog";
 import type { ApiArticle } from "@/lib/serialize";
@@ -69,12 +70,15 @@ export function HubView() {
     if (tab === "feed") setTimeout(checkChipScroll, 50);
   }, [tab, checkChipScroll]);
 
+  // Nguồn trending: hiển thị bảng xếp hạng theo `rank`, ẩn chip lọc/sort.
+  const isTrendingView = tab === "feed" && sources.find((s) => s.id === activeSource)?.type === "trending";
+
   const q = activeTopic ? activeTopic : search;
   const { items, total, loading, hasMore, loadMore, reload: reloadArticles } = useArticles({
     source: activeSource,
-    cat: activeCat,
-    q,
-    sort,
+    cat: isTrendingView ? null : activeCat,
+    q: isTrendingView ? "" : q,
+    sort: isTrendingView ? "rank" : sort,
     enabled: tab === "feed",
   });
 
@@ -258,7 +262,7 @@ export function HubView() {
                   <span style={{ fontSize: 13, color: "var(--muted-foreground)", fontWeight: 400 }}>{displayCount} bài</span>
                 )}
               </div>
-              {tab === "feed" && (
+              {tab === "feed" && !isTrendingView && (
                 <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
                   {/* Sort — pinned, never scrolls */}
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -317,7 +321,19 @@ export function HubView() {
               />
             )}
 
-            {tab === "feed" && (
+            {tab === "feed" && isTrendingView && (
+              <>
+                {loading && displayArticles.length === 0 && (
+                  <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>Đang tải…</div>
+                )}
+                {!loading && displayArticles.length === 0 && (
+                  <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>Chưa có dữ liệu trending. Bấm “Làm mới”.</div>
+                )}
+                <RankedList items={displayArticles} savedIds={savedIds} onOpen={handleOpen} onSave={handleSave} />
+              </>
+            )}
+
+            {tab === "feed" && !isTrendingView && (
               <div style={{ padding: "6px 0 30px", display: "flex", flexDirection: "column" }}>
                 {loading && displayArticles.length === 0 && (
                   <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>Đang tải…</div>
@@ -451,11 +467,49 @@ export function HubView() {
         />
       )}
 
+      {/* Mobile sidebar drawer */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 40,
+            background: "rgba(0,0,0,.45)",
+            backdropFilter: "blur(2px)",
+            WebkitBackdropFilter: "blur(2px)",
+          }}
+        />
+      )}
+      <div
+        className="mobile-drawer"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: "min(88vw, 320px)",
+          zIndex: 50,
+          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform .25s cubic-bezier(.4,0,.2,1)",
+          willChange: "transform",
+          overflowY: "auto",
+          boxShadow: sidebarOpen ? "6px 0 32px rgba(0,0,0,.18)" : "none",
+        }}
+      >
+        <SourceSidebar
+          sources={sources}
+          activeSourceId={activeSource}
+          onSelect={(id) => { setActiveSource(id); setSidebarOpen(false); if (tab !== "feed") setTab("feed"); }}
+          onManage={() => { setShowManager(true); setSidebarOpen(false); }}
+          onRefreshed={() => { reloadArticles(); reloadSources(); }}
+        />
+      </div>
+
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.35; } }
         @media (max-width: 1140px) { .hub-body { grid-template-columns: 240px minmax(0,1fr) !important; } .hub-body > div:last-child { display: none; } }
         @media (max-width: 820px) { .hub-body { grid-template-columns: 1fr !important; } .hub-body > div:first-child { display: none; } .menu-btn-hub { display: grid !important; } }
+        @media (min-width: 821px) { .mobile-drawer { display: none !important; } }
       `}</style>
     </div>
   );

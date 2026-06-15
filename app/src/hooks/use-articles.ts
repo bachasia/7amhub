@@ -6,7 +6,7 @@ export interface ArticlesFilter {
   source?: string | null;
   cat?: string | null;
   q?: string;
-  sort?: "latest" | "hot";
+  sort?: "latest" | "hot" | "rank";
   limit?: number;
   enabled?: boolean;
 }
