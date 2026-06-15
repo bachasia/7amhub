@@ -20,7 +20,7 @@ export const CAT_COLORS: Record<string, string> = {
   local: "var(--cat-local)",
 };
 
-export const CATEGORIES = ["world", "tech", "ai", "science", "dev", "biz", "sports", "local"] as const;
+export const CATEGORIES = ["world", "local", "tech", "ai", "science", "dev", "biz", "sports"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export function catLabel(cat: string | null | undefined): string {

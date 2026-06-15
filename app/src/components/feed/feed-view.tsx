@@ -110,9 +110,9 @@ export function FeedView() {
     { key: "tech", label: "Công nghệ" },
     { key: "science", label: "Khoa học" },
     { key: "world", label: "Thế giới" },
+    { key: "local", label: "Trong nước" },
     { key: "biz", label: "Kinh doanh" },
     { key: "sports", label: "Thể thao" },
-    { key: "local", label: "Trong nước" },
   ];
 
   const iconBtnStyle: React.CSSProperties = {
