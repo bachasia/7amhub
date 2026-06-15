@@ -50,6 +50,7 @@ export function HubView() {
 
   // Chip track scroll state for arrow nav
   const chipTrackRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const [chipScroll, setChipScroll] = useState({ left: false, right: true });
 
   const checkChipScroll = useCallback(() => {
@@ -69,6 +70,77 @@ export function HubView() {
   useEffect(() => {
     if (tab === "feed") setTimeout(checkChipScroll, 50);
   }, [tab, checkChipScroll]);
+
+  // Swipe gesture for mobile drawer — manipulate DOM directly to avoid re-render jank
+  useEffect(() => {
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+    const g = { active: false, startX: 0, startY: 0, startTime: 0, drawerWidth: 0, type: "" as "" | "open" | "close" };
+
+    function start(e: TouchEvent) {
+      const t = e.touches[0];
+      const dw = drawer.offsetWidth || Math.min(window.innerWidth * 0.88, 320);
+      if (!sidebarOpen && t.clientX <= 20) {
+        Object.assign(g, { active: true, startX: t.clientX, startY: t.clientY, startTime: Date.now(), drawerWidth: dw, type: "open" });
+        drawer.style.transition = "none";
+        drawer.style.transform = `translateX(-${dw}px)`;
+      } else if (sidebarOpen && t.clientX <= dw) {
+        Object.assign(g, { active: true, startX: t.clientX, startY: t.clientY, startTime: Date.now(), drawerWidth: dw, type: "close" });
+        drawer.style.transition = "none";
+      }
+    }
+
+    function move(e: TouchEvent) {
+      if (!g.active) return;
+      const dx = e.touches[0].clientX - g.startX;
+      const dy = Math.abs(e.touches[0].clientY - g.startY);
+      // Cancel if vertical scroll intent
+      if (dy > Math.abs(dx) + 8 && Math.abs(dx) < 20) {
+        g.active = false;
+        drawer.style.transition = "transform .25s cubic-bezier(.4,0,.2,1)";
+        drawer.style.transform = g.type === "open" ? `translateX(-${g.drawerWidth}px)` : "translateX(0)";
+        return;
+      }
+      e.preventDefault();
+      if (g.type === "open") {
+        drawer.style.transform = `translateX(${Math.max(-g.drawerWidth, Math.min(0, dx - g.drawerWidth))}px)`;
+      } else if (g.type === "close" && dx <= 0) {
+        drawer.style.transform = `translateX(${Math.max(-g.drawerWidth, dx)}px)`;
+      }
+    }
+
+    function end(e: TouchEvent) {
+      if (!g.active) return;
+      g.active = false;
+      const dx = e.changedTouches[0].clientX - g.startX;
+      const velocity = dx / Math.max(Date.now() - g.startTime, 1); // px/ms
+      drawer.style.transition = "transform .25s cubic-bezier(.4,0,.2,1)";
+      if (g.type === "open") {
+        if (dx > g.drawerWidth * 0.3 || velocity > 0.4) {
+          drawer.style.transform = "translateX(0)";
+          setSidebarOpen(true);
+        } else {
+          drawer.style.transform = `translateX(-${g.drawerWidth}px)`;
+        }
+      } else if (g.type === "close") {
+        if (dx < -g.drawerWidth * 0.3 || velocity < -0.4) {
+          drawer.style.transform = `translateX(-${g.drawerWidth}px)`;
+          setTimeout(() => setSidebarOpen(false), 260);
+        } else {
+          drawer.style.transform = "translateX(0)";
+        }
+      }
+    }
+
+    document.addEventListener("touchstart", start, { passive: true });
+    document.addEventListener("touchmove", move, { passive: false });
+    document.addEventListener("touchend", end, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", start);
+      document.removeEventListener("touchmove", move);
+      document.removeEventListener("touchend", end);
+    };
+  }, [sidebarOpen]);
 
   // Nguồn trending: hiển thị bảng xếp hạng theo `rank`, ẩn chip lọc/sort.
   const isTrendingView = tab === "feed" && sources.find((s) => s.id === activeSource)?.type === "trending";
@@ -480,6 +552,7 @@ export function HubView() {
         />
       )}
       <div
+        ref={drawerRef}
         className="mobile-drawer"
         style={{
           position: "fixed",
@@ -492,7 +565,7 @@ export function HubView() {
           transition: "transform .25s cubic-bezier(.4,0,.2,1)",
           willChange: "transform",
           overflowY: "auto",
-          boxShadow: sidebarOpen ? "6px 0 32px rgba(0,0,0,.18)" : "none",
+          boxShadow: "6px 0 32px rgba(0,0,0,.18)",
         }}
       >
         <SourceSidebar
