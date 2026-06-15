@@ -10,7 +10,8 @@ export function stripEmojiCodes(text: string): string {
 export function stripHtml(html: string): string {
   if (!html) return "";
   try {
-    const { document } = parseHTML(`<body>${html}</body>`);
+    // linkedom chỉ tạo body khi parse một document hoàn chỉnh — wrap <body> trần trả textContent rỗng.
+    const { document } = parseHTML(`<html><body>${html}</body></html>`);
     const text = (document.body?.textContent || "").replace(/\s+/g, " ").trim();
     return stripEmojiCodes(text);
   } catch {
