@@ -61,6 +61,8 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      packages: read
 
     steps:
       - name: Checkout (for compose file)
