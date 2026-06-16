@@ -8,8 +8,14 @@ import { articles, sources, type Source } from "@/lib/db/schema";
 import { serializeArticle } from "@/lib/serialize";
 import { CATEGORIES } from "@/lib/ai/classify";
 
+let _srcCache: { map: Map<string, Source>; ts: number } | null = null;
+const SRC_TTL = 30_000; // 30 seconds
+
 function sourceMap(): Map<string, Source> {
-  return new Map(db.select().from(sources).all().map((s) => [s.id, s]));
+  if (_srcCache && Date.now() - _srcCache.ts < SRC_TTL) return _srcCache.map;
+  const map = new Map(db.select().from(sources).all().map((s) => [s.id, s]));
+  _srcCache = { map, ts: Date.now() };
+  return map;
 }
 
 export function GET(req: NextRequest) {

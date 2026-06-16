@@ -1,5 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import type { ApiArticle } from "@/lib/serialize";
 
 export interface DigestGroup {
@@ -22,28 +24,21 @@ export interface DigestData {
   clusters: DigestCluster[];
 }
 
-interface DigestState {
-  data: DigestData | null;
-  loading: boolean;
-  error: string | null;
-}
+const KEY = "/api/digest/today";
 
 export function useDigest() {
-  const [state, setState] = useState<DigestState>({ data: null, loading: false, error: null });
+  const { data, error, isLoading, mutate } = useSWR<DigestData>(KEY, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false, // digest only changes once per day
+    dedupingInterval: 60_000,
+  });
 
-  const load = useCallback(async () => {
-    setState((s) => ({ ...s, loading: true, error: null }));
-    try {
-      const res = await fetch("/api/digest/today");
-      if (!res.ok) throw new Error(await res.text());
-      const data: DigestData = await res.json();
-      setState({ data, loading: false, error: null });
-    } catch (e: unknown) {
-      setState((s) => ({ ...s, loading: false, error: String(e) }));
-    }
-  }, []);
+  const reload = useCallback(() => mutate(), [mutate]);
 
-  useEffect(() => { load(); }, [load]);
-
-  return { ...state, reload: load };
+  return {
+    data: data ?? null,
+    loading: isLoading,
+    error: error ? String(error) : null,
+    reload,
+  };
 }

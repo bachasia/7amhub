@@ -51,6 +51,9 @@ export const articles = sqliteTable(
     byStatus: index("idx_articles_ai_status").on(t.aiStatus),
     byPublished: index("idx_articles_published").on(t.publishedAt),
     bySource: index("idx_articles_source").on(t.sourceId),
+    byFeedOrder: index("idx_articles_feed_order").on(t.feedOrder),
+    byStatusFeedOrder: index("idx_articles_status_feed_order").on(t.aiStatus, t.feedOrder),
+    bySourceFetchedAt: index("idx_articles_source_fetched_at").on(t.sourceId, t.fetchedAt),
   })
 );
 

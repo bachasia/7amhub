@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { Sparkles, BookOpen, Bookmark } from "lucide-react";
 import type { ApiArticle } from "@/lib/serialize";
 import { catLabel } from "@/lib/categories";
@@ -23,6 +24,27 @@ const CAT_PILL: Record<string, string> = {
   local: "#a05555",
 };
 
+const CARD_OUTER: React.CSSProperties = {
+  height: "100%",
+  scrollSnapAlign: "start",
+  scrollSnapStop: "always",
+  display: "flex",
+  flexDirection: "column",
+  padding: 12,
+  flexShrink: 0,
+};
+
+const CARD_INNER: React.CSSProperties = {
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+  borderRadius: 22,
+  overflow: "hidden",
+  background: "var(--card)",
+  boxShadow: "0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,.06)",
+  cursor: "pointer",
+};
+
 interface ArticleCardProps {
   article: ApiArticle;
   saved: boolean;
@@ -31,33 +53,16 @@ interface ArticleCardProps {
   onRead?: (article: ApiArticle) => void;
 }
 
-export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleCardProps) {
+export const ArticleCard = React.memo(function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleCardProps) {
   const bg = CAT_BG[article.cat ?? ""] ?? "#5e5d59";
   const pill = CAT_PILL[article.cat ?? ""] ?? "#87867f";
   return (
     <div
       data-cat={article.cat ?? ""}
-      style={{
-        height: "100%",
-        scrollSnapAlign: "start",
-        scrollSnapStop: "always",
-        display: "flex",
-        flexDirection: "column",
-        padding: 12,
-        flexShrink: 0,
-      }}
+      style={CARD_OUTER}
     >
       <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 22,
-          overflow: "hidden",
-          background: "var(--card)",
-          boxShadow: "0 0 0 1px var(--border), 0 4px 24px rgba(0,0,0,.06)",
-          cursor: "pointer",
-        }}
+        style={CARD_INNER}
         onClick={() => onOpen(article)}
       >
         {/* Image */}
@@ -242,4 +247,4 @@ export function ArticleCard({ article, saved, onOpen, onSave, onRead }: ArticleC
       </div>
     </div>
   );
-}
+});

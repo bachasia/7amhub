@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import Parser from "rss-parser";
@@ -99,18 +100,26 @@ async function generateSublabels(group: { id: string; url: string }[]): Promise<
   } catch { return new Map(); }
 }
 
-export function GET() {
-  const counts = new Map(
-    db
-      .select({ sid: articles.sourceId, n: sql<number>`count(*)` })
-      .from(articles)
-      .where(eq(articles.aiStatus, "ready"))
-      .groupBy(articles.sourceId)
-      .all()
-      .map((r) => [r.sid, r.n])
-  );
-  const rows = db.select().from(sources).all();
-  return NextResponse.json(rows.map((s) => ({ ...s, active: !!s.active, count: counts.get(s.id) ?? 0 })));
+const getCachedSources = unstable_cache(
+  async () => {
+    const counts = new Map(
+      db
+        .select({ sid: articles.sourceId, n: sql<number>`count(*)` })
+        .from(articles)
+        .where(eq(articles.aiStatus, "ready"))
+        .groupBy(articles.sourceId)
+        .all()
+        .map((r) => [r.sid, r.n])
+    );
+    const rows = db.select().from(sources).all();
+    return rows.map((s) => ({ ...s, active: !!s.active, count: counts.get(s.id) ?? 0 }));
+  },
+  ["sources-list"],
+  { revalidate: 30, tags: ["sources"] }
+);
+
+export async function GET() {
+  return NextResponse.json(await getCachedSources());
 }
 
 export async function POST(req: NextRequest) {
@@ -152,6 +161,7 @@ export async function POST(req: NextRequest) {
   const newId = "f" + Date.now();
   const row = { id: newId, label: parsed.data.label, url: resolvedUrl, siteUrl, active: 1, type: sourceType, group: parsed.data.group?.trim() || null, createdAt: Date.now() };
   db.insert(sources).values(row).run();
+  revalidateTag("sources", "max");
 
   // Kiểm tra xem có sources khác cùng base label không → generate sublabels 1 lần.
   // Bỏ qua YouTube: slug từ feeds/videos.xml ra "videos" (vô nghĩa).

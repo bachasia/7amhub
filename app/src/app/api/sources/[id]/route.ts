@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
@@ -31,6 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     group: parsed.data.group !== undefined ? (parsed.data.group?.trim() || null) : s.group,
   };
   db.update(sources).set(next).where(eq(sources.id, id)).run();
+  revalidateTag("sources", "max");
   return NextResponse.json({ ...s, ...next });
 }
 
@@ -38,5 +40,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   db.delete(articles).where(eq(articles.sourceId, id)).run();
   db.delete(sources).where(eq(sources.id, id)).run();
+  revalidateTag("sources", "max");
   return NextResponse.json({ ok: true });
 }

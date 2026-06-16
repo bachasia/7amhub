@@ -16,6 +16,11 @@ if (dir && !existsSync(dir)) mkdirSync(dir, { recursive: true });
 export const sqlite = new Database(config.DB_PATH);
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
+sqlite.pragma("synchronous = NORMAL");    // safe with WAL; fewer fsync per transaction
+sqlite.pragma("cache_size = -16000");     // 16MB page cache (negative = KiB)
+sqlite.pragma("mmap_size = 30000000000"); // 30GB mmap — OS handles page eviction
+sqlite.pragma("temp_store = memory");     // temp tables/indexes in RAM
+sqlite.pragma("busy_timeout = 5000");     // retry 5s before SQLITE_BUSY error
 
 export const db = drizzle(sqlite, { schema });
 export { schema };

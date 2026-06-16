@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useArticles } from "@/hooks/use-articles";
 import { useDigest } from "@/hooks/use-digest";
 import { useSources } from "@/hooks/use-sources";
@@ -56,7 +56,7 @@ export function FeedView() {
   const isRankedView = selectedSource?.type === "trending";
   const catFilter = !isDigest && !selectedSourceId && chip !== "all" ? chip : null;
 
-  const { items: feedItems, hasMore, loadMore } = useArticles({
+  const { items: feedItems, hasMore, loadMore, reload: reloadArticles } = useArticles({
     source: selectedSourceId,
     cat: catFilter,
     sort: isRankedView ? "rank" : "latest",
@@ -65,7 +65,7 @@ export function FeedView() {
 
   const cards: ApiArticle[] = isDigest ? digestCards(digest) : feedItems;
 
-  const srcMap = new Map(sources.map((s) => [s.id, s]));
+  const srcMap = useMemo(() => new Map(sources.map((s) => [s.id, s])), [sources]);
 
   // Track scroll position for rail dots + load-more
   useEffect(() => {
@@ -109,13 +109,14 @@ export function FeedView() {
     setRefreshing(true);
     try {
       await fetch("/api/refresh", { method: "POST" });
+      reloadArticles();
       sonnerToast("Đã làm mới nguồn tin");
     } catch {
       sonnerToast("Lỗi làm mới");
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [reloadArticles]);
 
   // Chọn nguồn từ ngăn kéo → đổi chip sang "src:<id>" (null = tất cả nguồn), đóng ngăn kéo.
   const selectSource = useCallback((id: string | null) => {

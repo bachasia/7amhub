@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import { SourceFavicon } from "./source-favicon";
 import { ArticleTag } from "./article-tag";
 import { SaveButton } from "./save-button";
@@ -15,7 +16,7 @@ interface ArticleRowProps {
   onSave: (article: ApiArticle) => void;
 }
 
-export function ArticleRow({ article, source, read, saved, onOpen, onSave }: ArticleRowProps) {
+export const ArticleRow = React.memo(function ArticleRow({ article, source, read, saved, onOpen, onSave }: ArticleRowProps) {
   return (
     <div
       role="button"
@@ -150,4 +151,4 @@ export function ArticleRow({ article, source, read, saved, onOpen, onSave }: Art
       </div>
     </div>
   );
-}
+});

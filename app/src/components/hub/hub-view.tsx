@@ -73,7 +73,7 @@ export function HubView() {
 
   // Swipe gesture for mobile drawer — manipulate DOM directly to avoid re-render jank
   useEffect(() => {
-    const drawer = drawerRef.current;
+    const drawer = drawerRef.current!;
     if (!drawer) return;
     const g = { active: false, startX: 0, startY: 0, startTime: 0, drawerWidth: 0, type: "" as "" | "open" | "close" };
 

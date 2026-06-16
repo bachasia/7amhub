@@ -175,20 +175,22 @@ export async function ingestOne(sourceId: string): Promise<{ inserted: number }>
   const urls = [...uniq.values()].map((it) => it.url);
   const recentCutoff = Date.now() - 24 * 60 * 60 * 1000;
 
+  // Single query covering id/url dedup + 24h title dedup window
   const existingRows = db
-    .select({ id: articles.id, url: articles.url })
+    .select({ id: articles.id, url: articles.url, title: articles.title })
     .from(articles)
-    .where(or(inArray(articles.id, ids), inArray(articles.url, urls)))
-    .all();
-  const recentRows = db
-    .select({ title: articles.title })
-    .from(articles)
-    .where(and(eq(articles.sourceId, sourceId), gt(articles.fetchedAt, recentCutoff)))
+    .where(
+      or(
+        inArray(articles.id, ids),
+        inArray(articles.url, urls),
+        and(eq(articles.sourceId, sourceId), gt(articles.fetchedAt, recentCutoff))
+      )
+    )
     .all();
 
   const existingIds = new Set(existingRows.map((r) => r.id));
   const existingUrls = new Set(existingRows.map((r) => r.url));
-  const existingTitles = new Set(recentRows.map((r) => normalizeTitle(r.title)));
+  const existingTitles = new Set(existingRows.map((r) => normalizeTitle(r.title)));
 
   const fresh = [...uniq.values()].filter(
     (it) => !existingIds.has(it.id) && !existingUrls.has(it.url) && !existingTitles.has(normalizeTitle(it.title))
