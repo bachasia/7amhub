@@ -14,7 +14,7 @@ const schema = z.object({
   MODEL_SMART: z.string().default("claude-sonnet-4-6"),
   INGEST_CRON: z.string().default("*/15 * * * *"),
   AI_WORKER_CRON: z.string().default("*/2 * * * *"),
-  DIGEST_CRON: z.string().default("0 7 * * *"),
+  DIGEST_CRON: z.string().default("0 7,18 * * *"),
   TZ: z.string().default("Asia/Saigon"),
   DB_PATH: z.string().default("./data/7amhub.db"),
 });

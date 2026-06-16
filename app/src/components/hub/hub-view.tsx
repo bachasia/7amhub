@@ -257,10 +257,13 @@ export function HubView() {
         </button>
 
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0 }}>
+        <button
+          onClick={() => { setTab("feed"); setSearch(""); setActiveSource(null); setActiveCat(null); setActiveTopic(null); handleRefresh(); }}
+          style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit" }}
+        >
           <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7H</span>
           <span>7<span style={{ color: "var(--primary)" }}>AM</span> Hub</span>
-        </div>
+        </button>
 
         {/* Search */}
         <div style={{ flex: 1, maxWidth: 520, position: "relative" }}>
