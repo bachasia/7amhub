@@ -192,7 +192,7 @@ export function FeedView() {
           <button style={{ ...iconBtnStyle, width: 36, height: 36, marginLeft: -6 }} aria-label="Nguồn tin" onClick={() => setDrawerOpen(true)}>
             <Menu size={22} />
           </button>
-          <button onClick={handleRefresh} style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit" }}>
+          <button onClick={() => { setChip("all"); handleRefresh(); }} style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit" }}>
             <span style={{ width: 30, height: 30, borderRadius: 6, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, letterSpacing: ".06em" }}>7H</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <span>7<span style={{ color: "var(--primary)" }}>AM</span> Hub</span>
