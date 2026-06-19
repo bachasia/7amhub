@@ -15,6 +15,10 @@ const schema = z.object({
   INGEST_CRON: z.string().default("*/15 * * * *"),
   AI_WORKER_CRON: z.string().default("*/2 * * * *"),
   DIGEST_CRON: z.string().default("0 7,18 * * *"),
+  // Số bài đưa vào pool cho AI chọn digest, và trần bài mỗi nguồn để tránh
+  // nguồn nhiều bài lấn át (đa dạng hóa "Đề xuất 7AM").
+  DIGEST_CANDIDATES: z.coerce.number().default(60),
+  DIGEST_PER_SOURCE_CAP: z.coerce.number().default(8),
   TZ: z.string().default("Asia/Saigon"),
   DB_PATH: z.string().default("./data/7amhub.db"),
 });

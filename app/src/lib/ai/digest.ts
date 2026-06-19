@@ -89,11 +89,51 @@ const CLUSTER_INPUT_SCHEMA = {
 
 const DAY_MS = 24 * 3.6e6;
 
+/**
+ * Đa dạng hóa pool theo nguồn: round-robin chọn lần lượt bài tốt nhất của mỗi
+ * nguồn (pool đã sắp theo hotScore giảm dần), trần `cap` bài/nguồn. Đảm bảo top
+ * danh sách trải đều các nguồn thay vì dồn vào nguồn có nhiều bài nhất.
+ */
+function diversifyBySource<T extends { sourceId: string | null }>(
+  pool: T[],
+  limit: number,
+  cap: number,
+): T[] {
+  const bySource = new Map<string, T[]>();
+  for (const item of pool) {
+    const key = item.sourceId ?? "_";
+    (bySource.get(key) ?? bySource.set(key, []).get(key)!).push(item);
+  }
+  // Giữ thứ tự nguồn theo bài "nóng" nhất của từng nguồn (pool đã sắp sẵn).
+  const queues = [...bySource.values()];
+  const taken = new Map<string, number>();
+  const out: T[] = [];
+
+  let progressed = true;
+  while (out.length < limit && progressed) {
+    progressed = false;
+    for (const queue of queues) {
+      if (out.length >= limit) break;
+      const next = queue.shift();
+      if (!next) continue;
+      const key = next.sourceId ?? "_";
+      const count = taken.get(key) ?? 0;
+      if (count >= cap) continue;
+      taken.set(key, count + 1);
+      out.push(next);
+      progressed = true;
+    }
+  }
+  return out;
+}
+
 export async function buildDigest(date = todayLocal()): Promise<DigestPayload | null> {
   if (!aiReady()) return null;
 
   const since = Date.now() - DAY_MS;
-  const recent = db
+  // Lấy pool rộng rồi đa dạng hóa theo nguồn ở tầng JS, tránh nguồn nhiều bài
+  // (vd Tuổi Trẻ) chiếm trọn danh sách đầu vào → digest thiếu đa dạng.
+  const pool = db
     .select({
       id: articles.id,
       title: articles.title,
@@ -101,14 +141,17 @@ export async function buildDigest(date = todayLocal()): Promise<DigestPayload | 
       tags: articles.tags,
       aiLead: articles.aiLead,
       hotScore: articles.hotScore,
+      sourceId: articles.sourceId,
       sourceLabel: sources.label,
     })
     .from(articles)
     .leftJoin(sources, eq(articles.sourceId, sources.id))
     .where(and(eq(articles.aiStatus, "ready"), gte(articles.fetchedAt, since)))
     .orderBy(sql`${articles.hotScore} desc`)
-    .limit(60)
+    .limit(config.DIGEST_CANDIDATES * 6)
     .all();
+
+  const recent = diversifyBySource(pool, config.DIGEST_CANDIDATES, config.DIGEST_PER_SOURCE_CAP);
 
   if (!recent.length) return null;
   const valid = new Set(recent.map((r) => r.id));
